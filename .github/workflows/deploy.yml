@@ -1,0 +1,81 @@
+name: CI/CD Pipeline - Azure & Docker
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  infra-and-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      PUBLIC_IP: ${{ steps.bicep-deploy.outputs.publicIpAddress }}
+
+    steps:
+      - name: Checkout Código
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy da Infra (Bicep)
+        id: bicep-deploy
+        uses: azure/arm-deploy@v2
+        with:
+          resourceGroupName: rg-faculdade-prod
+          template: ./infra/main.bicep
+          parameters: >
+            sshPublicKey="${{ secrets.SSH_PUBLIC_KEY }}"
+
+      - name: Logar no GitHub Container Registry (GHCR)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Buildar e Push da Imagem Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/luizpassaroni/nestjs-api:latest
+
+  deploy-to-vm:
+    needs: infra-and-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Executar Deploy na VM via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ needs.infra-and-build.outputs.PUBLIC_IP }}
+          username: deployer
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            if ! command -v docker &> /dev/null; then
+              sudo apt update && sudo apt upgrade -y
+              sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
+              echo '/swapfile none swap sw 0 0' | sudo tee -a / fstab
+              sudo apt install docker.io docker-compose -y
+              sudo systemctl enable --now docker
+              sudo usermod -aG docker deployer
+            fi
+            
+            mkdir -p ~/app
+            echo '${{ secrets.DOCKER_COMPOSE_PROD }}' > ~/app/docker-compose.yml
+            cd ~/app
+            
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            docker compose pull
+            docker compose up -d
+            migration
+            echo "Aguardando o banco de dados inicializar..."
+            sleep 15
+            
+            docker compose exec -T api npx prisma migrate deploy
