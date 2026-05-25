@@ -60,22 +60,22 @@ jobs:
             if ! command -v docker &> /dev/null; then
               sudo apt update && sudo apt upgrade -y
               sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
-              echo '/swapfile none swap sw 0 0' | sudo tee -a / fstab
+              echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
               sudo apt install docker.io docker-compose -y
               sudo systemctl enable --now docker
               sudo usermod -aG docker deployer
             fi
-            
+
             mkdir -p ~/app
             echo '${{ secrets.DOCKER_COMPOSE_PROD }}' > ~/app/docker-compose.yml
             cd ~/app
-            
+
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-            
+
             docker compose pull
             docker compose up -d
-            migration
+
             echo "Aguardando o banco de dados inicializar..."
             sleep 15
-            
+
             docker compose exec -T api npx prisma migrate deploy
