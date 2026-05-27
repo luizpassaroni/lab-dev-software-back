@@ -710,7 +710,7 @@
   <nav class="sidebar" aria-label="Sumário">
     <div class="sidebar-header">
       <p class="sidebar-title">PRD — Guia de Streaming</p>
-      <p class="sidebar-version">v1.0 · 24 mai 2026</p>
+      <p class="sidebar-version">v1.1 · 26 mai 2026</p>
     </div>
     <ul class="toc">
       <li><a href="#s1"><span class="toc-num">1</span>Resumo executivo</a></li>
@@ -732,7 +732,7 @@
       <li><a href="#s17"><span class="toc-num">17</span>Repositórios</a></li>
     </ul>
     <div class="sidebar-foot">
-      Documento ativo &middot; última atualização em 24/05/2026
+      Documento ativo &middot; última atualização em 26/05/2026
     </div>
   </nav>
 
@@ -743,11 +743,11 @@
       <div class="doc-meta">
         <div class="doc-meta-item">
           <span class="doc-meta-label">Versão</span>
-          <span class="doc-meta-value">1.0</span>
+          <span class="doc-meta-value">1.1</span>
         </div>
         <div class="doc-meta-item">
           <span class="doc-meta-label">Data</span>
-          <span class="doc-meta-value">24/05/2026</span>
+          <span class="doc-meta-value">26/05/2026</span>
         </div>
         <div class="doc-meta-item">
           <span class="doc-meta-label">Autor</span>
@@ -925,7 +925,7 @@
         <div class="us">
           <p class="us-statement"><span class="us-id">US-2.1</span>Como visitante ou logado, quero buscar por filme ou série pelo nome.</p>
           <ul class="ac-list">
-            <li>Tempo de resposta dentro do orçamento de §8 (200ms cache-hit / 2s cache-miss / 30s tolerado em cold start).</li>
+            <li>Tempo de resposta dentro do orçamento de §8 (200ms cache-hit / 2s cache-miss).</li>
             <li><strong>Filmes e séries vêm juntos</strong> em uma única lista (back usa <code>/search/multi</code>, filtra fora resultados de pessoa).</li>
             <li>Cards mostram poster + título + ano + <strong>badge visual indicando filme ou série</strong>.</li>
             <li>Paginação via <strong>botão "Carregar mais" no rodapé</strong> (20 resultados por página da TMDB; cada clique acumula mais 20).</li>
@@ -1042,7 +1042,6 @@
       <ul>
         <li><strong>Cache-hit</strong> (chamada TMDB já cacheada): resposta em até <strong>200ms</strong>.</li>
         <li><strong>Cache-miss</strong> (chamando TMDB pela primeira vez): resposta em até <strong>2s</strong>.</li>
-        <li><strong>Primeira requisição após cold start</strong> (free tier do back inativo): até <strong>30s</strong> — aceito como limitação do plano gratuito (mitigação: "esquentar" a instância antes da apresentação, ver §14).</li>
       </ul>
 
       <h3>Cache TMDB</h3>
@@ -1058,16 +1057,21 @@
       <p>JWT via <code>@nestjs/jwt</code> + <code>passport-jwt</code>; token com expiração de <strong>24h</strong>; <strong>sem refresh token no MVP</strong> (movido para §5.3 stretch); ao expirar, app redireciona para tela de login; secret em variável de ambiente (<code>.env</code>), nunca commitada.</p>
 
       <h3>Segurança</h3>
-      <p>Hash de senha com <strong>bcrypt</strong> ou <strong>argon2</strong> (nunca texto plano nem hash simples); validação de input em todos os endpoints (<code>class-validator</code> via Nest DTOs); HTTPS obrigatório em produção; <strong>rate limit</strong> no endpoint de login (5 tentativas / 15 min por IP via <code>@nestjs/throttler</code>).</p>
+      <p>Hash de senha com <strong>bcrypt</strong> ou <strong>argon2</strong> (nunca texto plano nem hash simples); validação de input em todos os endpoints (<code>class-validator</code> via Nest DTOs); <strong>HTTPS obrigatório em produção em ambos os lados</strong> — Vercel cobre o front automaticamente; o back resolve via Caddy/Traefik no <code>docker-compose</code> (Let's Encrypt automático com domínio próprio) ou Cloudflare grátis em modo proxy na frente da VM. Sem cobertura HTTPS no back, o front publicado na Vercel (HTTPS) é bloqueado por mixed content. <strong>Rate limit</strong> no endpoint de login (5 tentativas / 15 min por IP via <code>@nestjs/throttler</code>).</p>
 
       <h3>Deploy</h3>
-      <p>Aplicação <strong>deve estar acessível online</strong> (exigência do Prof. Paulo Andrade). Plataformas escolhidas:</p>
+      <p>Aplicação <strong>deve estar acessível online</strong> (exigência do Prof. Paulo Andrade). Stack escolhida:</p>
       <ul>
         <li><strong>Front (Next.js): Vercel</strong> — integração nativa, deploy automático via GitHub.</li>
-        <li><strong>Back (Nest.js): Render</strong> — free tier, deploy via git; cold start de 15-30s após 15min de inatividade aceito (mitigado em §14).</li>
-        <li><strong>Banco (PostgreSQL): Neon</strong> — Postgres serverless gerenciado, free tier generoso, sem pause arbitrário.</li>
-        <li>Variáveis sensíveis (TMDB API key, JWT secret, <code>DATABASE_URL</code>) ficam nas configurações de cada plataforma; nunca commitadas.</li>
+        <li><strong>Back (Nest.js): Azure VM 24/7 com Docker compose</strong> — container do app NestJS na porta 3000 mapeada pra 80 da VM.</li>
+        <li><strong>Banco (PostgreSQL):</strong> container Postgres no mesmo <code>docker-compose.yml</code> da VM, na rede interna do Docker, sem exposição pública.</li>
+        <li><strong>IaC:</strong> Bicep (Azure ARM).</li>
+        <li><strong>CI/CD:</strong> GitHub Actions, pipeline estrita à <code>main</code>.</li>
+        <li>Variáveis sensíveis (TMDB API key, JWT secret, <code>DATABASE_URL</code>) em secrets do GitHub Actions e variáveis de ambiente da VM; nunca commitadas.</li>
       </ul>
+
+      <h3>Processo de deploy</h3>
+      <p>PRs que tocam IaC (Bicep), <code>docker-compose.yml</code> ou pipeline CI/CD (GitHub Actions) exigem aprovação de pelo menos 2 integrantes antes de merge em <code>main</code>. Documentação do deploy passo-a-passo mora no <code>README.md</code> do back, atualizada conforme o pipeline estabiliza.</p>
 
       <h3>Outros</h3>
       <ul>
@@ -1077,7 +1081,7 @@
       </ul>
 
       <h3>Logging</h3>
-      <p><code>nestjs-pino</code>. Setup mínimo: <code>LoggerModule.forRoot()</code> no <code>AppModule</code> com defaults; sem <code>pino-pretty</code> em produção (Render captura JSON puro do stdout); em dev <code>pino-pretty</code> é opcional para legibilidade. Campos por log: <code>level</code>, <code>time</code> (automático), <code>context</code> (<code>auth</code>/<code>tmdb</code>/<code>db</code>), <code>msg</code>, <code>userId</code> quando aplicável, <code>err.stack</code> quando aplicável. <strong>Nunca logar:</strong> senhas (mesmo erradas), tokens JWT, body de request de login/cadastro — regra dura, <strong>sem <code>redact</code> paths configurado</strong> (overkill para o MVP; checar visualmente no PR). <strong>Onde logar (mínimo):</strong> erros 5xx da TMDB; tentativas de login com senha errada e rate limit atingido; erros não-tratados via exception filter global. <strong>Sem Sentry / Datadog / log aggregation pago no MVP</strong> — retenção é a do free tier do Render (~7 dias).</p>
+      <p><code>nestjs-pino</code>. Setup mínimo: <code>LoggerModule.forRoot()</code> no <code>AppModule</code> com defaults; sem <code>pino-pretty</code> em produção (Docker captura JSON puro do stdout dos containers); em dev <code>pino-pretty</code> é opcional para legibilidade. Campos por log: <code>level</code>, <code>time</code> (automático), <code>context</code> (<code>auth</code>/<code>tmdb</code>/<code>db</code>), <code>msg</code>, <code>userId</code> quando aplicável, <code>err.stack</code> quando aplicável. <strong>Nunca logar:</strong> senhas (mesmo erradas), tokens JWT, body de request de login/cadastro — regra dura, <strong>sem <code>redact</code> paths configurado</strong> (overkill para o MVP; checar visualmente no PR). <strong>Onde logar (mínimo):</strong> erros 5xx da TMDB; tentativas de login com senha errada e rate limit atingido; erros não-tratados via exception filter global. <strong>Sem Sentry / Datadog / log aggregation pago no MVP</strong> — retenção dos logs depende da configuração do Docker/VM, sem agregador de logs no MVP.</p>
 
       <h3>Tratamento de erros na UI</h3>
       <ul>
@@ -1119,15 +1123,20 @@
         <li><strong>Django:</strong> foi sugerido pelo professor; o time optou por JavaScript no back para unificar a stack com o front e reaproveitar conhecimento.</li>
         <li><strong>Fastify puro:</strong> considerado inicialmente; trocado por Nest.js para ganhar estrutura modular adequada ao tamanho do time.</li>
         <li><strong>Monorepo:</strong> decidido em discussão prévia, mas o time já criou dois repositórios separados; aceitamos a estrutura existente em vez de retrabalhar.</li>
+        <li><strong>Render + Neon (PaaS free tier):</strong> considerados inicialmente; trocados após contraproposta técnica do back (26/05) por Azure VM 24/7 com Docker compose, eliminando cold start de 15-30s e mitigando configuration drift via imagens reproduzíveis.</li>
       </ul>
     </section>
 
     <section id="s10">
       <h2><span class="h-num">10</span>Arquitetura macro</h2>
 
-      <div class="arch">[Navegador] → [Next.js Frontend] → [Nest.js API] → [PostgreSQL]
-                                          ↓
-                                      [TMDB API]</div>
+      <div class="arch">[Navegador] → [Vercel — Next.js Frontend]
+                      ↓
+              [Azure VM (Docker compose)]
+              ├─ container: Nest.js API (3000 → VM:80)
+              └─ container: PostgreSQL (5432, rede interna)
+                              ↓
+                          [TMDB API]</div>
 
       <ul>
         <li>Frontend Next.js consome a API do backend (sem chamar TMDB direto).</li>
@@ -1184,7 +1193,8 @@
           <li class="done">Criar branch <code>main</code> no back e definir como default no GitHub.</li>
           <li class="done">Convidar Eduardo Fernandes ao repo back.</li>
           <li>Scaffold Next.js no front.</li>
-          <li>CI básico (GitHub Actions: lint + build) nos 2 repos.</li>
+          <li>CI básico no front (GitHub Actions: lint + build) — Vercel cuida do deploy.</li>
+          <li>Infraestrutura do back: Azure VM via Bicep + <code>docker-compose.yml</code> (API NestJS + Postgres em containers, rede interna, app <code>:3000→VM:80</code>, postgres <code>:5432</code> interna) + pipeline GitHub Actions estrita à <code>main</code> (build da Docker image + push + deploy via SSH na VM ao mergear em <code>main</code>). Entregue no PR <code>feat/infra-cicd</code>.</li>
         </ul>
       </div>
 
@@ -1204,6 +1214,7 @@
         <p class="sprint-title">Ficha + Onde assistir + histórico<span class="sprint-when">semanas 4-5</span></p>
         <ul class="ac-list">
           <li>Ficha básica (US-2.2) — pré-requisito de US-3.1.</li>
+          <li><strong>HTTPS no back</strong> — escolher e configurar uma das duas opções (Caddy/Traefik no <code>docker-compose</code> <strong>ou</strong> Cloudflare grátis em modo proxy na frente da VM); validar com <code>curl https://&lt;dominio&gt;/health</code> antes de mergear em <code>main</code>. Bloqueia uso real do front publicado na Vercel (mixed content).</li>
           <li>E3 Onde assistir (US-3.1).</li>
           <li>E4 Avaliação + visto + favorito (US-4.1 a 4.4).</li>
         </ul>
@@ -1223,9 +1234,9 @@
         <p class="sprint-eyebrow">Sprint 4</p>
         <p class="sprint-title">Fechamento e deploy<span class="sprint-when">semana 8</span></p>
         <ul class="ac-list">
-          <li><strong>Deploy do back</strong> no <strong>Render</strong> (free tier; aceitar cold start de 15-30s; "esquentar" instância antes da apresentação).</li>
-          <li><strong>Deploy do front</strong> na <strong>Vercel</strong>.</li>
-          <li><strong>Deploy do banco</strong> no <strong>Neon</strong> (free tier; Postgres serverless).</li>
+          <li><strong>Deploy do front na Vercel</strong> (production, não Preview Deployment).</li>
+          <li><strong>Validação end-to-end do deploy publicado:</strong> criar conta → login → buscar "Oppenheimer" → ver provedor BR no ambiente final (Vercel + Azure VM).</li>
+          <li><strong>Monitorar custos do Azure</strong> durante a semana 8 — confirmar que o consumo cabe no plano gratuito escolhido.</li>
           <li><strong>Relatório acadêmico em PDF no template institucional da UVA</strong> — capa, resumo, introdução, fundamentação, desenvolvimento, telas, backlog, versionamento, resultados, conclusão, referências.</li>
           <li>README finalizado nos 2 repos.</li>
           <li>DER e diagrama de arquitetura exportados em <code>docs/</code> nos 2 repos.</li>
@@ -1267,18 +1278,6 @@
               <td><span class="level level-media">Média</span></td>
               <td><span class="level level-media">Médio</span></td>
               <td>Mostrar "não disponível em streaming BR" como estado válido.</td>
-            </tr>
-            <tr>
-              <td>Free tier do back (cold start no Render após inatividade) atrapalha apresentação</td>
-              <td><span class="level level-media">Média</span></td>
-              <td><span class="level level-media">Médio</span></td>
-              <td>Acordar a instância antes da apresentação; manter URL deployada por todo o ciclo final, não só na entrega.</td>
-            </tr>
-            <tr>
-              <td>Limites do Neon free (timeouts de conexão, pause após dias inativos)</td>
-              <td><span class="level level-media">Média</span></td>
-              <td><span class="level level-media">Médio</span></td>
-              <td>Validar limites antes da Sprint 4; ter plano B (Render Postgres como fallback).</td>
             </tr>
             <tr>
               <td>Time não acostumado com fluxo de PR/issues no GitHub</td>
@@ -1331,6 +1330,7 @@
         <li><span class="decision-date">24/05/2026</span><strong>Cobertura de testes:</strong> sem percentual forçado. <strong>Back</strong> tem lista de cenários obrigatórios (9 cenários entre <code>auth.service</code> e <code>titles.service</code> — ver §8) auditáveis por linha de teste, não por número. <strong>Front</strong> tem testes simbólicos (2-3 testes de componente como prática educativa e item de rubrica), sem disciplina de TDD; resto da validação é QA manual. CI bloqueia merge no back se testes falharem.</li>
         <li><span class="decision-date">24/05/2026</span><strong>Sprint 1 reescopo:</strong> mover US-2.2 (Ficha básica) para Sprint 2, junto com US-3.1 Onde assistir (que depende dela). Sprint 1 = Auth completa (US-1.1/1.2/1.3) + Busca (US-2.1). Demo S1 fica com story arc fechado ("criar conta → buscar → ver lista"). Mitigação concreta para dependência front↔back adicionada como linha nova em §14.</li>
         <li><span class="decision-date">24/05/2026</span><strong>Favorito vs Quero ver (Watchlist):</strong> Favorito é <strong>afetivo sem semântica temporal</strong> — pode ser marcado antes ou depois de assistir; funciona como <em>like</em> genérico. Watchlist é <strong>fora do MVP</strong> e quando entrar via §5.3 será uma lista <strong>separada e adicional</strong> chamada canonicamente <strong>"Quero ver"</strong>, com o mesmo título podendo coexistir em Favoritos e em Quero ver, e <strong>sem migration</strong> dos favoritos existentes.</li>
+        <li><span class="decision-date">26/05/2026</span><strong>Plataformas de deploy reformuladas</strong> (supersede 24/05/2026) após contraproposta técnica do back: <strong>Vercel</strong> (front Next.js, inalterado) + <strong>Azure VM 24/7 com Docker compose</strong> (back NestJS em container + Postgres em container na mesma VM, rede interna Docker, app <code>:3000→VM:80</code>, postgres <code>:5432</code> interna) + <strong>Bicep</strong> (IaC) + <strong>GitHub Actions</strong> (CI/CD com pipeline estrita à <code>main</code>). Razões: Docker resolve configuration drift entre dev e prod via imagem reproduzível; VM 24/7 elimina cold start (era 15-30s no Render free); CI/CD com Actions é padrão atual de mercado; Postgres no mesmo compose evita Neon free tier.</li>
       </ul>
     </section>
 

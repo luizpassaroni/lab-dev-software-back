@@ -1,8 +1,8 @@
 # PRD — Guia de Streaming
 
-**Versão:** 1.0
+**Versão:** 1.1
 **Autor:** Caio Planinschek (PO)
-**Data:** 24/05/2026
+**Data:** 26/05/2026
 **Audiência:** time do projeto Guia de Streaming
 **Status:** ativo
 
@@ -142,7 +142,7 @@ Registrado para não voltar atrás sem decisão explícita:
 ### Épico E2 — Catálogo (busca e ficha)
 
 - **US-2.1** Como visitante ou logado, quero buscar por filme ou série pelo nome.
-  - [ ] Tempo de resposta dentro do orçamento de §8 (200ms cache-hit / 2s cache-miss / 30s tolerado em cold start).
+  - [ ] Tempo de resposta dentro do orçamento de §8 (200ms cache-hit / 2s cache-miss).
   - [ ] **Filmes e séries vêm juntos** em uma única lista (back usa `/search/multi`, filtra fora resultados de pessoa).
   - [ ] Cards mostram poster + título + ano + **badge visual indicando filme ou série**.
   - [ ] Paginação via **botão "Carregar mais" no rodapé** (20 resultados por página da TMDB; cada clique acumula mais 20).
@@ -219,23 +219,25 @@ Usuário (qualquer) digita query → backend chama TMDB `/search/multi` → reto
 - **Desempenho:**
   - **Cache-hit** (chamada TMDB já cacheada): resposta em até **200ms**.
   - **Cache-miss** (chamando TMDB pela primeira vez): resposta em até **2s**.
-  - **Primeira requisição após cold start** (free tier do back inativo): até **30s** — aceito como limitação do plano gratuito (mitigação: "esquentar" a instância antes da apresentação, ver §14).
 - **Cache TMDB:** via `@nestjs/cache-manager` em memória do processo Nest (sem Redis no MVP). TTLs diferenciados por endpoint:
   - Lista de gêneros (`/genre/movie/list`, `/genre/tv/list`): **permanente até restart do processo**.
   - Ficha do título (`/movie/{id}`, `/tv/{id}`): **24h**.
   - Provedores (`/movie/{id}/watch/providers`, equivalente tv): **12h**.
   - Busca (`/search/multi`): **1h**.
 - **Autenticação:** JWT via `@nestjs/jwt` + `passport-jwt`; token com expiração de **24h**; **sem refresh token no MVP** (movido para §5.3 stretch); ao expirar, app redireciona para tela de login; secret em variável de ambiente (`.env`), nunca commitada.
-- **Segurança:** hash de senha com **bcrypt** ou **argon2** (nunca texto plano nem hash simples); validação de input em todos os endpoints (`class-validator` via Nest DTOs); HTTPS obrigatório em produção; **rate limit** no endpoint de login (5 tentativas / 15 min por IP via `@nestjs/throttler`).
-- **Deploy:** aplicação **deve estar acessível online** (exigência do Prof. Paulo Andrade). Plataformas escolhidas:
+- **Segurança:** hash de senha com **bcrypt** ou **argon2** (nunca texto plano nem hash simples); validação de input em todos os endpoints (`class-validator` via Nest DTOs); **HTTPS obrigatório em produção em ambos os lados** — Vercel cobre o front automaticamente; o back resolve via Caddy/Traefik no `docker-compose` (Let's Encrypt automático com domínio próprio) ou Cloudflare grátis em modo proxy na frente da VM. Sem cobertura HTTPS no back, o front publicado na Vercel (HTTPS) é bloqueado por mixed content. **Rate limit** no endpoint de login (5 tentativas / 15 min por IP via `@nestjs/throttler`).
+- **Deploy:** aplicação **deve estar acessível online** (exigência do Prof. Paulo Andrade). Stack escolhida:
   - **Front (Next.js): Vercel** — integração nativa, deploy automático via GitHub.
-  - **Back (Nest.js): Render** — free tier, deploy via git; cold start de 15-30s após 15min de inatividade aceito (mitigado em §14).
-  - **Banco (PostgreSQL): Neon** — Postgres serverless gerenciado, free tier generoso, sem pause arbitrário.
-  - Variáveis sensíveis (TMDB API key, JWT secret, `DATABASE_URL`) ficam nas configurações de cada plataforma; nunca commitadas.
+  - **Back (Nest.js): Azure VM 24/7 com Docker compose** — container do app NestJS na porta 3000 mapeada pra 80 da VM.
+  - **Banco (PostgreSQL):** container Postgres no mesmo `docker-compose.yml` da VM, na rede interna do Docker, sem exposição pública.
+  - **IaC:** Bicep (Azure ARM).
+  - **CI/CD:** GitHub Actions, pipeline estrita à `main`.
+  - Variáveis sensíveis (TMDB API key, JWT secret, `DATABASE_URL`) em secrets do GitHub Actions e variáveis de ambiente da VM; nunca commitadas.
+- **Processo de deploy:** PRs que tocam IaC (Bicep), `docker-compose.yml` ou pipeline CI/CD (GitHub Actions) exigem aprovação de pelo menos 2 integrantes antes de merge em `main`. Documentação do deploy passo-a-passo mora no `README.md` do back, atualizada conforme o pipeline estabiliza.
 - **Responsividade:** foco desktop, responsivo básico via breakpoints CSS para tablets/celulares.
 - **Acessibilidade:** contraste mínimo WCAG AA em ambos os temas (dark/light).
 - **i18n:** UI em PT-BR; sem multilíngue.
-- **Logging:** `nestjs-pino`. Setup mínimo: `LoggerModule.forRoot()` no `AppModule` com defaults; sem `pino-pretty` em produção (Render captura JSON puro do stdout); em dev `pino-pretty` é opcional para legibilidade. Campos por log: `level`, `time` (automático), `context` (`auth`/`tmdb`/`db`), `msg`, `userId` quando aplicável, `err.stack` quando aplicável. **Nunca logar:** senhas (mesmo erradas), tokens JWT, body de request de login/cadastro — regra dura, **sem `redact` paths configurado** (overkill para o MVP; checar visualmente no PR). **Onde logar (mínimo):** erros 5xx da TMDB; tentativas de login com senha errada e rate limit atingido; erros não-tratados via exception filter global. **Sem Sentry / Datadog / log aggregation pago no MVP** — retenção é a do free tier do Render (~7 dias).
+- **Logging:** `nestjs-pino`. Setup mínimo: `LoggerModule.forRoot()` no `AppModule` com defaults; sem `pino-pretty` em produção (Docker captura JSON puro do stdout dos containers); em dev `pino-pretty` é opcional para legibilidade. Campos por log: `level`, `time` (automático), `context` (`auth`/`tmdb`/`db`), `msg`, `userId` quando aplicável, `err.stack` quando aplicável. **Nunca logar:** senhas (mesmo erradas), tokens JWT, body de request de login/cadastro — regra dura, **sem `redact` paths configurado** (overkill para o MVP; checar visualmente no PR). **Onde logar (mínimo):** erros 5xx da TMDB; tentativas de login com senha errada e rate limit atingido; erros não-tratados via exception filter global. **Sem Sentry / Datadog / log aggregation pago no MVP** — retenção dos logs depende da configuração do Docker/VM, sem agregador de logs no MVP.
 - **Tratamento de erros na UI:**
   - **Falha de rede / erro 5xx / timeout TMDB:** front mostra mensagem genérica "Não foi possível carregar agora. Tente novamente." + botão "Tentar de novo" que refaz a chamada. Detalhes técnicos só nos logs.
   - **404 / título não encontrado:** página "Título não encontrado" com link "Voltar para a home" (ver §12).
@@ -272,15 +274,20 @@ Gratuita, com dados em PT-BR (sinopses, gêneros) e endpoint `watch/providers` c
 - **Django:** foi sugerido pelo professor; o time optou por JavaScript no back para unificar a stack com o front e reaproveitar conhecimento.
 - **Fastify puro:** considerado inicialmente; trocado por Nest.js para ganhar estrutura modular adequada ao tamanho do time.
 - **Monorepo:** decidido em discussão prévia, mas o time já criou dois repositórios separados; aceitamos a estrutura existente em vez de retrabalhar.
+- **Render + Neon (PaaS free tier):** considerados inicialmente; trocados após contraproposta técnica do back (26/05) por Azure VM 24/7 com Docker compose, eliminando cold start de 15-30s e mitigando configuration drift via imagens reproduzíveis.
 
 ---
 
 ## 10. Arquitetura macro
 
 ```
-[Navegador] → [Next.js Frontend] → [Nest.js API] → [PostgreSQL]
-                                          ↓
-                                      [TMDB API]
+[Navegador] → [Vercel — Next.js Frontend]
+                      ↓
+              [Azure VM (Docker compose)]
+              ├─ container: Nest.js API (3000 → VM:80)
+              └─ container: PostgreSQL (5432, rede interna)
+                              ↓
+                          [TMDB API]
 ```
 
 - Frontend Next.js consome a API do backend (sem chamar TMDB direto).
@@ -333,7 +340,8 @@ Estrutura em sprints curtas (1-2 semanas). Cada item vira issue no GitHub.
 - [x] Criar branch `main` no back e definir como default no GitHub.
 - [x] Convidar Eduardo Fernandes ao repo back.
 - [ ] Scaffold Next.js no front.
-- [ ] CI básico (GitHub Actions: lint + build) nos 2 repos.
+- [ ] CI básico no front (GitHub Actions: lint + build) — Vercel cuida do deploy.
+- [ ] Infraestrutura do back: Azure VM via Bicep + `docker-compose.yml` (API NestJS + Postgres em containers, rede interna, app `:3000→VM:80`, postgres `:5432` interna) + pipeline GitHub Actions estrita à `main` (build da Docker image + push + deploy via SSH na VM ao mergear em `main`). Entregue no PR `feat/infra-cicd`.
 
 ### Sprint 1 — Auth + busca (semanas 2-3)
 
@@ -345,6 +353,7 @@ Estrutura em sprints curtas (1-2 semanas). Cada item vira issue no GitHub.
 ### Sprint 2 — Ficha + Onde assistir + histórico (semanas 4-5)
 
 - [ ] Ficha básica (US-2.2) — pré-requisito de US-3.1.
+- [ ] **HTTPS no back** — escolher e configurar uma das duas opções (Caddy/Traefik no `docker-compose` **ou** Cloudflare grátis em modo proxy na frente da VM); validar com `curl https://<dominio>/health` antes de mergear em `main`. Bloqueia uso real do front publicado na Vercel (mixed content).
 - [ ] E3 Onde assistir (US-3.1).
 - [ ] E4 Avaliação + visto + favorito (US-4.1 a 4.4).
 
@@ -356,9 +365,9 @@ Estrutura em sprints curtas (1-2 semanas). Cada item vira issue no GitHub.
 
 ### Sprint 4 — Fechamento e deploy (semana 8)
 
-- [ ] **Deploy do back** no **Render** (free tier; aceitar cold start de 15-30s; "esquentar" instância antes da apresentação).
-- [ ] **Deploy do front** na **Vercel**.
-- [ ] **Deploy do banco** no **Neon** (free tier; Postgres serverless).
+- [ ] **Deploy do front na Vercel** (production, não Preview Deployment).
+- [ ] **Validação end-to-end do deploy publicado:** criar conta → login → buscar "Oppenheimer" → ver provedor BR no ambiente final (Vercel + Azure VM).
+- [ ] **Monitorar custos do Azure** durante a semana 8 — confirmar que o consumo cabe no plano gratuito escolhido.
 - [ ] **Relatório acadêmico em PDF no template institucional da UVA** — capa, resumo, introdução, fundamentação, desenvolvimento, telas, backlog, versionamento, resultados, conclusão, referências.
 - [ ] README finalizado nos 2 repos.
 - [ ] DER e diagrama de arquitetura exportados em `docs/` nos 2 repos.
@@ -376,8 +385,6 @@ Estrutura em sprints curtas (1-2 semanas). Cada item vira issue no GitHub.
 | Time grande (13) com baixa disponibilidade individual (média 2-5h/semana) | alta | alto | Tasks pequenas e bem definidas; PO dedicado a desbloquear. |
 | Mix de níveis técnicos e disponibilidade variável (algumas pessoas com horas limitadas por semana) | alta | médio | Documentar bem o setup; pair programming nas issues complexas. |
 | TMDB pode não cobrir provedores para títulos de nicho | média | médio | Mostrar "não disponível em streaming BR" como estado válido. |
-| Free tier do back (cold start no Render após inatividade) atrapalha apresentação | média | médio | Acordar a instância antes da apresentação; manter URL deployada por todo o ciclo final, não só na entrega. |
-| Limites do Neon free (timeouts de conexão, pause após dias inativos) | média | médio | Validar limites antes da Sprint 4; ter plano B (Render Postgres como fallback). |
 | Time não acostumado com fluxo de PR/issues no GitHub | média | médio | Documentar o fluxo no README do back; revisão coletiva nos primeiros PRs. |
 | **Front bloqueado esperando endpoints do back** (auth, busca, ficha) — atrasa S1 inteira | alta | alto | Acordar **contrato das APIs no dia 1 de cada sprint** (path, request, response, códigos de erro) por escrito; front mocka a resposta enquanto back implementa; integração no fim da sprint. |
 
@@ -416,6 +423,7 @@ Log de decisões fechadas até a publicação desta versão.
 - **24/05/2026** **Cobertura de testes:** sem percentual forçado. **Back** tem lista de cenários obrigatórios (9 cenários entre `auth.service` e `titles.service` — ver §8) auditáveis por linha de teste, não por número. **Front** tem testes simbólicos (2-3 testes de componente como prática educativa e item de rubrica), sem disciplina de TDD; resto da validação é QA manual. CI bloqueia merge no back se testes falharem.
 - **24/05/2026** **Sprint 1 reescopo:** mover US-2.2 (Ficha básica) para Sprint 2, junto com US-3.1 Onde assistir (que depende dela). Sprint 1 = Auth completa (US-1.1/1.2/1.3) + Busca (US-2.1). Demo S1 fica com story arc fechado ("criar conta → buscar → ver lista"). Mitigação concreta para dependência front↔back adicionada como linha nova em §14 (contrato de API acordado no dia 1 + mock no front).
 - **24/05/2026** **Favorito vs Quero ver (Watchlist):** Favorito é **afetivo sem semântica temporal** — pode ser marcado antes ou depois de assistir; funciona como *like* genérico. Watchlist é **fora do MVP** e quando entrar via §5.3 será uma lista **separada e adicional** chamada canonicamente **"Quero ver"**, com o mesmo título podendo coexistir em Favoritos e em Quero ver, e **sem migration** dos favoritos existentes.
+- **26/05/2026** **Plataformas de deploy reformuladas** (supersede 24/05/2026) após contraproposta técnica do back: **Vercel** (front Next.js, inalterado) + **Azure VM 24/7 com Docker compose** (back NestJS em container + Postgres em container na mesma VM, rede interna Docker, app `:3000→VM:80`, postgres `:5432` interna) + **Bicep** (IaC) + **GitHub Actions** (CI/CD com pipeline estrita à `main`). Razões: Docker resolve configuration drift entre dev e prod via imagem reproduzível; VM 24/7 elimina cold start (era 15-30s no Render free); CI/CD com Actions é padrão atual de mercado; Postgres no mesmo compose evita Neon free tier.
 
 ---
 
