@@ -44,11 +44,16 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/luizpassaroni/nestjs-api:latest
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/nestjs-api:latest
+            ghcr.io/${{ github.repository_owner }}/nestjs-api:${{ github.sha }}
 
   deploy-to-vm:
     needs: infra-and-build
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
     steps:
       - name: Executar Deploy na VM via SSH
         uses: appleboy/ssh-action@v1.0.3
@@ -76,7 +81,12 @@ jobs:
             fi
 
             mkdir -p ~/app
-            echo '${{ secrets.DOCKER_COMPOSE_PROD }}' > ~/app/docker-compose.yml
+            
+            # Correção do echo para não quebrar o YML se houver aspas
+            cat << 'EOF' > ~/app/docker-compose.yml
+            ${{ secrets.DOCKER_COMPOSE_PROD }}
+            EOF
+            
             cd ~/app
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
@@ -84,7 +94,17 @@ jobs:
             docker compose pull
             docker compose up -d
 
-            echo "Aguardando o banco de dados inicializar..."
-            sleep 15
-
-            docker compose exec -T api npx prisma migrate deploy
+            echo "Aguardando o banco de dados/API ficarem prontos para executar as migrations..."
+            attempts=0
+            max_attempts=12
+            
+            # Loop de retry no lugar daquele sleep de 15s inútil
+            until docker compose exec -T api npx prisma migrate deploy; do
+              attempts=$((attempts + 1))
+              if [ "$attempts" -ge "$max_attempts" ]; then
+                echo "Falha ao executar migrations após $max_attempts tentativas."
+                exit 1
+              fi
+              echo "Migrations ainda não disponíveis; aguardando 10s antes de tentar novamente... ($attempts/$max_attempts)"
+              sleep 10
+            done
