@@ -2,13 +2,14 @@
 
 > Gerado em 2026-05-24 a partir de `issues-back.md` (14) + `issues-front.md` (9). Total inicial: **23 issues** em 2 repos.
 > Atualizado em 2026-05-27 após sincronização real no GitHub + arquivos locais revisados pelo PRD v1.1.
+> Atualizado em 2026-05-28: criada `ISSUE-BACK-15` (`#19`) e critério de README de deploy desmembrado da `#18` — origem no PR #16.
 > Este arquivo é um **log operacional compartilhável**: deve existir uma cópia em `docs/issues-publicadas.md` no repo back e outra no repo front.
 
 ## Resumo atual
 
 | Repo | Issues publicadas | Estado | Observação |
 |---|---:|---|---|
-| `luizpassaroni/lab-dev-software-back` | 15 | todas abertas | `ISSUE-BACK-00` publicada como `#18`; `#18`, `#1`, `#2`, `#3`, `#4`, `#5` e `#9` têm assignee |
+| `luizpassaroni/lab-dev-software-back` | 16 | todas abertas | `ISSUE-BACK-00` publicada como `#18`; `ISSUE-BACK-15` publicada como `#19` (sem assignee); `#18`, `#1`, `#2`, `#3`, `#4`, `#5` e `#9` têm assignee |
 | `luizpassaroni/lab-dev-software-front` | 9 | todas abertas | sem assignees no momento da verificação |
 
 Milestones atuais: `Sprint 0` (#2 no back) e `Sprint 1` (#1 em ambos os repos). Labels usadas: `sprint-0`, `sprint-1`, `back`/`front` e `epic:*`.
@@ -42,6 +43,7 @@ Milestones:
 | ISSUE-BACK-12 | #12 | open | — | <https://github.com/luizpassaroni/lab-dev-software-back/issues/12> | ISSUE-BACK-12 — [test] titles.service — 3 cenários do PRD §8 |
 | ISSUE-BACK-13 | #13 | open | — | <https://github.com/luizpassaroni/lab-dev-software-back/issues/13> | ISSUE-BACK-13 — [meta] Kickoff Dia 1 — fechar contratos em `docs/contratos-api-s1.md` |
 | ISSUE-BACK-14 | #14 | open | — | <https://github.com/luizpassaroni/lab-dev-software-back/issues/14> | ISSUE-BACK-14 — [meta] Atualizar `.env.example` consolidado da Sprint 1 |
+| ISSUE-BACK-15 | #19 | open | — | <https://github.com/luizpassaroni/lab-dev-software-back/issues/19> | ISSUE-BACK-15 — [infra] README do back: deploy + variáveis de ambiente (configService) |
 
 ## Frontend — `luizpassaroni/lab-dev-software-front`
 
@@ -71,6 +73,11 @@ Fonte local autoritativa: `A4\_notas-projeto\issues-back.md`.
 - `ISSUE-BACK-00` usa labels `sprint-0`, `back`, `epic:infra`, milestone `Sprint 0` e assignee `eduoncode`.
 - Issues existentes `#1` a `#14` atualizadas com título, corpo, labels e milestone atuais de `issues-back.md`, preservando número, assignees, comentários e histórico.
 - Issues `#1` a `#14` permanecem na milestone `Sprint 1`.
+
+Atualização 2026-05-28 (origem: PR #16):
+
+- `ISSUE-BACK-15` criada como `#19` (milestone `Sprint 1`; labels `sprint-1`, `back`, `epic:infra`; sem assignee), desmembrando o critério de README de deploy da `#18`.
+- `#18` teve o critério "README do back documenta o passo a passo de deploy e variáveis necessárias" marcado como movido para `#19`.
 
 ### Front
 
