@@ -7,9 +7,9 @@ async function bootstrap() {
   if (!jwtSecret || jwtSecret === 'trocar-em-producao') {
     console.error(
       '❌ FATAL: JWT_SECRET is not configured or is using the default unsafe value.\n' +
-      'Please set JWT_SECRET in your .env file.\n' +
-      'To generate a secure secret: openssl rand -base64 32\n' +
-      'Or use: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'base64\'))"\n',
+        'Please set JWT_SECRET in your .env file.\n' +
+        'To generate a secure secret: openssl rand -base64 32\n' +
+        "Or use: node -e \"console.log(require('crypto').randomBytes(32).toString('base64'))\"\n",
     );
     process.exit(1);
   }
@@ -17,4 +17,5 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+// use `void` to avoid floating-promise lint warnings
+void bootstrap();

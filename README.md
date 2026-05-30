@@ -23,7 +23,14 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository with Prisma and JWT authentication.
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository with Prisma ORM and JWT authentication.
+
+**Features:**
+- 🔐 JWT-based authentication (24h token expiration)
+- 🗄️ Prisma ORM for database management
+- ✅ Input validation with class-validator
+- 🛡️ TypeScript for type safety
+- 📚 Ready for production with secure configurations
 
 ## Environment Setup
 
@@ -66,6 +73,9 @@ $ npm run start:dev
 
 # production mode
 $ npm run start:prod
+
+# debug mode
+$ npm run start:debug
 ```
 
 ## Run tests
@@ -73,6 +83,9 @@ $ npm run start:prod
 ```bash
 # unit tests
 $ npm run test
+
+# watch mode
+$ npm run test:watch
 
 # e2e tests
 $ npm run test:e2e
