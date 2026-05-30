@@ -8,6 +8,9 @@ describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
+    // Definir JWT_SECRET para testes
+    process.env.JWT_SECRET = 'test-secret-key-for-jwt-testing-only';
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
