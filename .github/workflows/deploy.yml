@@ -106,10 +106,10 @@ jobs:
             POSTGRES_PASSWORD=$PROD_POSTGRES_PASSWORD
             POSTGRES_DB=uva_nestjs_db
             DATABASE_URL=postgres://uva_admin_prod:$PROD_POSTGRES_PASSWORD@postgres:5432/uva_nestjs_db
-            PORT=80
+            PORT=3000
             EOF
 
-            cat << EOF > Caddyfile
+            cat << 'EOF' > Caddyfile
             api.eduoncode.com {
               reverse_proxy api:3000
             }
