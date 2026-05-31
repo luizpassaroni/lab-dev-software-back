@@ -109,6 +109,12 @@ jobs:
             PORT=80
             EOF
 
+            cat << EOF > Caddyfile
+            api.eduoncode.com {
+              reverse_proxy api:3000
+            }
+            EOF
+
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             docker compose pull
