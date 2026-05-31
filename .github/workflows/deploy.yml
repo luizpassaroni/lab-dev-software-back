@@ -4,6 +4,19 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'infra/**'
+      - 'src/**'
+      - '.github/workflows/**'
+      - 'Dockerfile'
+      - 'docker-compose.prod.yml'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'prisma/**'
+      - 'tsconfig.json'
+      - 'tsconfig.build.json'
+      - 'nest-cli.json'
+      - 'prisma.config.ts'
 
 jobs:
   infra-and-build:
@@ -27,6 +40,7 @@ jobs:
         id: bicep-deploy
         uses: azure/arm-deploy@v2
         with:
+          scope: resourcegroup
           resourceGroupName: rg-faculdade-prod
           template: ./infra/main.bicep
           parameters: >
@@ -57,13 +71,17 @@ jobs:
     steps:
       - name: Executar Deploy na VM via SSH
         uses: appleboy/ssh-action@v1.0.3
+        env:
+          PROD_POSTGRES_PASSWORD: ${{ secrets.PROD_POSTGRES_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ needs.infra-and-build.outputs.PUBLIC_IP }}
           username: deployer
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: PROD_POSTGRES_PASSWORD,GITHUB_TOKEN
           script: |
             if ! command -v docker &> /dev/null; then
-              sudo apt update && sudo apt upgrade -y
+              sudo apt update -y
               sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile
               echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
               sudo apt install -y ca-certificates curl gnupg
@@ -74,22 +92,24 @@ jobs:
                 "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
                 $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
                 sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-              sudo apt update
+              sudo apt update -y
               sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
               sudo systemctl enable --now docker
               sudo usermod -aG docker deployer
             fi
 
             mkdir -p ~/app
-            
-            # Correção do echo para não quebrar o YML se houver aspas
-            cat << 'EOF' > ~/app/docker-compose.yml
-            ${{ secrets.DOCKER_COMPOSE_PROD }}
-            EOF
-            
             cd ~/app
+            curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.prod.yml -o docker-compose.yml
+            cat << EOF > .env
+            POSTGRES_USER=uva_admin_prod
+            POSTGRES_PASSWORD=$PROD_POSTGRES_PASSWORD
+            POSTGRES_DB=uva_nestjs_db
+            DATABASE_URL=postgres://uva_admin_prod:$PROD_POSTGRES_PASSWORD@postgres:5432/uva_nestjs_db
+            PORT=80
+            EOF
 
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             docker compose pull
             docker compose up -d
@@ -97,14 +117,12 @@ jobs:
             echo "Aguardando o banco de dados/API ficarem prontos para executar as migrations..."
             attempts=0
             max_attempts=12
-            
-            # Loop de retry no lugar daquele sleep de 15s inútil
             until docker compose exec -T api npx prisma migrate deploy; do
               attempts=$((attempts + 1))
               if [ "$attempts" -ge "$max_attempts" ]; then
                 echo "Falha ao executar migrations após $max_attempts tentativas."
                 exit 1
               fi
-              echo "Migrations ainda não disponíveis; aguardando 10s antes de tentar novamente... ($attempts/$max_attempts)"
+              echo "Migrations ainda não disponíveis; aguardando 10s... ($attempts/$max_attempts)"
               sleep 10
             done
