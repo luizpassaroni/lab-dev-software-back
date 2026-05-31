@@ -2,7 +2,7 @@
 
 > **Duração:** semanas 2-3 | **Repo:** `lab-dev-software-back`
 > **Doc-fonte:** `docs/PRD.md` + `_notas-projeto/sprint-1-plan.md`
-> **Total:** 15 issues (1 Sprint 0 infra paralela + 14 Sprint 1)
+> **Total:** 16 issues (1 Sprint 0 infra paralela + 15 Sprint 1)
 > **Como usar:** cada bloco `## ISSUE-BACK-NN` é uma issue independente no GitHub. Copiar título + corpo. Owner é definido no kickoff (Dia 1), exceto `ISSUE-BACK-00`, planejada para Eduardo Fernandes.
 
 **Convenções:**
@@ -35,7 +35,7 @@ O PRD v1.1 reformulou a stack de deploy: front na Vercel; back e Postgres em uma
 - [ ] Container NestJS escutando na porta `3000`, mapeado para a porta `80` da VM
 - [ ] GitHub Actions com pipeline estrita à `main` para build/deploy
 - [ ] Secrets sensíveis (`TMDB_API_TOKEN`, `JWT_SECRET`, `DATABASE_URL`, credenciais Azure/SSH) fora do repositório, configurados em GitHub Secrets/ambiente da VM
-- [ ] README do back documenta o passo a passo de deploy e variáveis necessárias
+- [ ] ~~README do back documenta o passo a passo de deploy e variáveis necessárias~~ — desmembrado para o card dedicado `#19` / `ISSUE-BACK-15` (deploy + variáveis do configService), conforme discussão no PR #16
 - [ ] PRs que tocam Bicep, `docker-compose.yml` ou GitHub Actions exigem aprovação de pelo menos 2 integrantes antes de merge em `main`
 - [ ] PR aberto como `feat/infra-cicd`, ou issue atualizada com link para o PR equivalente caso o nome mude
 
@@ -423,3 +423,24 @@ Artefato esperado: `docs/contratos-api-s1.md` (na raiz do repo back, versionado)
 - [ ] Comentário acima de cada variável (uma linha) explicando o que é
 - [ ] README do back tem seção "## Setup local" linkando para `.env.example` com 3 comandos: copiar, preencher, `npx prisma migrate dev`
 - [ ] Testado: dev novo clona o repo, segue o README, sobe o app sem perguntar nada no chat
+
+---
+
+## ISSUE-BACK-15 — [infra] README do back: deploy + variáveis de ambiente (configService)
+
+**Labels:** `sprint-1` `back` `epic:infra`
+**Publicada como:** `#19` — <https://github.com/luizpassaroni/lab-dev-software-back/issues/19>
+**US:** — (RNF / Deploy — PRD §8)
+**Depende de:** ISSUE-BACK-00 (#18 — infra base) · distribuir junto com ISSUE-BACK-14 (`.env.example`)
+
+### Contexto
+
+Critério desmembrado da ISSUE-BACK-00 (#18): o README do back precisa documentar o passo a passo de deploy e as variáveis de ambiente consumidas pelo `ConfigService` em produção. Conforme PRD §8, essa documentação é atualizada conforme o pipeline de deploy estabiliza — por isso roda como card próprio, sem bloquear o fechamento da #18. Distribuição combinada junto com a ISSUE-BACK-14 (`.env.example`). Origem: discussão no PR #16 (Eduardo sugeriu "card exclusivo" para README de deploy + variáveis do configService).
+
+### Critérios de aceite
+
+- [ ] Seção `## Deploy` no README do back com o passo a passo de subida na Azure VM (provisionamento via Bicep + pipeline GitHub Actions disparado ao mergear em `main`)
+- [ ] Lista das variáveis de ambiente lidas pelo `ConfigService` em produção, com descrição de uma linha cada (`DATABASE_URL`, `JWT_SECRET`, `TMDB_API_TOKEN`, `NODE_ENV`, etc.)
+- [ ] Indicação de quais variáveis moram em GitHub Secrets / ambiente da VM e quais ficam no `.env` local — só nomes e propósito, **sem valores reais**
+- [ ] Coerência com o `docker-compose.prod.yml` versionado (PR #16) e com o `.env.example` da ISSUE-BACK-14
+- [ ] Nenhuma credencial ou segredo real versionado no README
