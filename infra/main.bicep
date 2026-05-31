@@ -1,4 +1,4 @@
-param location string = resourceGroup().location
+param location string = 'brazilsouth'
 param vmName string = 'vm-nestjs-prod'
 param adminUsername string = 'deployer'
 
