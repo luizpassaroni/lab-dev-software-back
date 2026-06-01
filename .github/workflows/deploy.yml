@@ -97,23 +97,31 @@ jobs:
               sudo systemctl enable --now docker
               sudo usermod -aG docker deployer
             fi
+            
             mkdir -p ~/app
             cd ~/app
-            curl -sSL https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.prod.yml -o docker-compose.yml
+            
+             Cache buster na URL para o GitHub parar de entregar arquivo velho
+            curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.prod.yml?v=${{ github.sha }}" -o docker-compose.yml
+            
             cat << EOF > .env
             POSTGRES_USER=uva_admin_prod
             POSTGRES_PASSWORD=$PROD_POSTGRES_PASSWORD
             POSTGRES_DB=uva_nestjs_db
             PORT=3000
             EOF
+            
             cat << 'EOF' > Caddyfile
             api-uva.eduoncode.com {
               reverse_proxy api:3000
             }
             EOF
+            
             echo "$GITHUB_TOKEN" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
             docker compose pull
-            docker compose up -d
+            docker compose up -d --force-recreate
+            
             echo "Aguardando o banco de dados/API ficarem prontos para executar as migrations..."
             attempts=0
             max_attempts=12
