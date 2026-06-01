@@ -101,7 +101,6 @@ jobs:
             mkdir -p ~/app
             cd ~/app
             
-             Cache buster na URL para o GitHub parar de entregar arquivo velho
             curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.prod.yml?v=${{ github.sha }}" -o docker-compose.yml
             
             cat << EOF > .env
