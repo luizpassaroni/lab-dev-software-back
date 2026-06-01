@@ -25,8 +25,8 @@ services:
     image: ghcr.io/luizpassaroni/nestjs-api:latest
     container_name: uva_nestjs_api_prod
     environment:
-      DATABASE_URL: ${DATABASE_URL}
-      PORT: ${PORT:-3000}
+      DATABASE_URL: postgres://uva_admin_prod:${POSTGRES_PASSWORD}@postgres:5432/uva_nestjs_db
+      PORT: 3000
     depends_on:
       postgres:
         condition: service_healthy
