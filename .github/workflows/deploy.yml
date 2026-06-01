@@ -102,7 +102,7 @@ jobs:
             cd ~/app
             
             curl -sSL "https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.prod.yml?v=${{ github.sha }}" -o docker-compose.yml
-            
+            curl -fsSL --retry 3 --retry-all-errors "https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.prod.yml?v=${{ github.sha }}" -o docker-compose.yml
             cat << EOF > .env
             POSTGRES_USER=uva_admin_prod
             POSTGRES_PASSWORD=$PROD_POSTGRES_PASSWORD
