@@ -107,7 +107,7 @@ jobs:
             PORT=3000
             EOF
             cat << 'EOF' > Caddyfile
-            api.eduoncode.com {
+            api-uva.eduoncode.com {
               reverse_proxy api:3000
             }
             EOF
