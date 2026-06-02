@@ -6,12 +6,14 @@ import { TitlesModule } from './titles/titles.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
+import { UserModule } from './user/user.module';
+import { validate } from './env.validation';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
+      validate,
       isGlobal: true,
-      envFilePath: '.env',
     }),
     CacheModule.register({
       isGlobal: true,
@@ -20,6 +22,7 @@ import { PrismaModule } from './prisma/prisma.module';
     PrismaModule,
     TitlesModule,
     AuthModule,
+    UserModule,
   ],
   controllers: [AppController],
   providers: [AppService],
