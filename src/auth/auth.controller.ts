@@ -51,24 +51,4 @@ export class AuthController {
       user: req.user,
     };
   }
-
-  /**
-   * Endpoint de refresh token (exemplo)
-   * Revalida o token atual e retorna um novo
-   */
-  @Post('refresh')
-  @UseGuards(JwtAuthGuard)
-  refresh(
-    @Request()
-    req: ExpressRequest & {
-      user?: { userId: string; email: string; iat?: number };
-    },
-  ) {
-    if (!req.user) {
-      throw new UnauthorizedException('Token inválido');
-    }
-    const { userId, email } = req.user;
-    const newPayload = this.authService.createPayload(userId, email);
-    return this.authService.generateToken(newPayload);
-  }
 }
