@@ -2,9 +2,26 @@ import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateUserDto } from '../user/dto/create-user.dto';
+
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwtService: JwtService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly jwtService: JwtService,
+  ) {}
+
+  async createUser(createUserDto: CreateUserDto) {
+    const { email, password, name } = createUserDto;
+    await this.prisma.user.create({
+      data: {
+        email,
+        password,
+        name,
+      },
+    });
+  }
 
   /**
    * Gera um JWT token para um usuário
@@ -34,7 +51,7 @@ export class AuthService {
    * @param email Email do usuário
    * @returns JwtPayload formatado
    */
-  createPayload(userId: string, email: string): JwtPayload {
+  createPayload(userId: number, email: string): JwtPayload {
     return {
       sub: userId,
       email,

@@ -1,16 +1,13 @@
 /**
  * Interface que representa o payload (conteúdo) de um JWT token
+ * @property sub - ID do usuário (subject)
+ * @property email - Email do usuário
+ * @property iat - Timestamp de emissão (opcional)
+ * @property exp - Timestamp de expiração (opcional)
  */
 export interface JwtPayload {
-  /** ID do usuário (subject) */
-  sub: string;
-
-  /** Email do usuário */
+  sub: number;
   email: string;
-
-  /** Timestamp de emissão (in seconds) */
   iat?: number;
-
-  /** Timestamp de expiração (in seconds) - configurado automaticamente pelo @nestjs/jwt */
   exp?: number;
 }
