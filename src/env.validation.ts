@@ -7,7 +7,6 @@ import {
   validateSync,
 } from 'class-validator';
 
-// Define o formato rigoroso do seu .env
 export class EnvironmentVariables {
   constructor(port: number, jwtSecret: string) {
     this.PORT = port;
