@@ -5,6 +5,7 @@ import { AppService } from './app.service';
 import { TitlesModule } from './titles/titles.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule } from '@nestjs/config';
+import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { ConfigModule } from '@nestjs/config';
       isGlobal: true,
       ttl: 3_600_000,
     }),
+    PrismaModule,
     TitlesModule,
     AuthModule,
   ],
