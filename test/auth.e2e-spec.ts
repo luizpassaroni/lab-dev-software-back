@@ -2,41 +2,146 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
+import { PrismaService } from '../src/prisma/prisma.service';
+
+type StoredUser = {
+  id: number;
+  name: string;
+  email: string;
+  passwordHash: string;
+  createdAt: Date;
+};
 
 describe('Auth E2E Tests', () => {
   let app: INestApplication;
+  const users = new Map<string, StoredUser>();
+  let nextUserId = 1;
+
+  const prismaMock = {
+    user: {
+      create: jest.fn(({ data }) => {
+        const user: StoredUser = {
+          id: nextUserId,
+          name: data.name,
+          email: data.email,
+          passwordHash: data.passwordHash,
+          createdAt: new Date('2026-01-01T00:00:00.000Z'),
+        };
+
+        nextUserId += 1;
+        users.set(user.email, user);
+        return Promise.resolve(user);
+      }),
+      findUnique: jest.fn(({ where }) => {
+        return Promise.resolve(users.get(where.email) ?? null);
+      }),
+    },
+  };
 
   beforeAll(async () => {
-    // Definir JWT_SECRET para testes
     process.env.JWT_SECRET = 'test-secret-key-for-jwt-testing-only';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
-    }).compile();
+    })
+      .overrideProvider(PrismaService)
+      .useValue(prismaMock)
+      .compile();
 
     app = moduleFixture.createNestApplication();
-    app.useGlobalPipes(new ValidationPipe());
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
     await app.init();
+    await app.listen(0);
+  });
+
+  beforeEach(() => {
+    users.clear();
+    nextUserId = 1;
+    jest.clearAllMocks();
   });
 
   afterAll(async () => {
     await app.close();
   });
 
+  function registerUser(email = 'test@example.com') {
+    return request(app.getHttpServer()).post('/auth/register').send({
+      name: 'Test User',
+      email,
+      password: 'password123',
+    });
+  }
+
+  describe('POST /auth/register', () => {
+    it('deve criar usuário sem retornar token nem setar cookie', async () => {
+      await registerUser()
+        .expect(201)
+        .expect((res) => {
+          expect(res.body).toEqual({
+            id: 1,
+            name: 'Test User',
+            email: 'test@example.com',
+            createdAt: '2026-01-01T00:00:00.000Z',
+          });
+          expect(res.body).not.toHaveProperty('password');
+          expect(res.body).not.toHaveProperty('passwordHash');
+          expect(res.body).not.toHaveProperty('access_token');
+          expect(res.headers['set-cookie']).toBeUndefined();
+        });
+
+      const persistedUser = users.get('test@example.com');
+
+      expect(persistedUser?.passwordHash).toEqual(expect.any(String));
+      expect(persistedUser?.passwordHash).not.toBe('password123');
+    });
+
+    it('deve retornar erro 400 com senha menor que 8 caracteres', () => {
+      return request(app.getHttpServer())
+        .post('/auth/register')
+        .send({
+          name: 'Test User',
+          email: 'test@example.com',
+          password: '1234567',
+        })
+        .expect(400);
+    });
+  });
+
   describe('POST /auth/login', () => {
-    it('deve retornar um token JWT com email e password válidos', () => {
+    it('deve retornar access_token e user no corpo, sem cookie', async () => {
+      await registerUser();
+
       return request(app.getHttpServer())
         .post('/auth/login')
         .send({
           email: 'test@example.com',
           password: 'password123',
         })
-        .expect(201)
+        .expect(200)
         .expect((res) => {
           expect(res.body).toHaveProperty('access_token');
           expect(typeof res.body.access_token).toBe('string');
-          expect(res.body.access_token.split('.').length).toBe(3); // JWT tem 3 partes
+          expect(res.body.access_token.split('.')).toHaveLength(3);
+          expect(res.body.user).toEqual({
+            id: 1,
+            name: 'Test User',
+            email: 'test@example.com',
+            createdAt: '2026-01-01T00:00:00.000Z',
+          });
+          expect(res.headers['set-cookie']).toBeUndefined();
         });
+    });
+
+    it('deve retornar erro 401 com senha inválida', async () => {
+      await registerUser();
+
+      return request(app.getHttpServer())
+        .post('/auth/login')
+        .send({
+          email: 'test@example.com',
+          password: 'wrong-password',
+        })
+        .expect(401);
     });
 
     it('deve retornar erro 400 com email inválido', () => {
@@ -49,40 +154,21 @@ describe('Auth E2E Tests', () => {
         .expect(400);
     });
 
-    it('deve retornar erro 400 com password muito curta', () => {
+    it('deve retornar erro 400 se password estiver vazio', () => {
       return request(app.getHttpServer())
         .post('/auth/login')
         .send({
           email: 'test@example.com',
-          password: '123', // menos de 6 caracteres
-        })
-        .expect(400);
-    });
-
-    it('deve retornar erro 400 se email estiver faltando', () => {
-      return request(app.getHttpServer())
-        .post('/auth/login')
-        .send({
-          password: 'password123',
-        })
-        .expect(400);
-    });
-
-    it('deve retornar erro 400 se password estiver faltando', () => {
-      return request(app.getHttpServer())
-        .post('/auth/login')
-        .send({
-          email: 'test@example.com',
+          password: '',
         })
         .expect(400);
     });
   });
 
-  describe('GET /auth/profile', () => {
-    let token: string;
+  describe('GET /auth/me', () => {
+    async function loginAndGetToken() {
+      await registerUser();
 
-    beforeAll(async () => {
-      // Fazer login para obter token
       const loginRes = await request(app.getHttpServer())
         .post('/auth/login')
         .send({
@@ -90,123 +176,40 @@ describe('Auth E2E Tests', () => {
           password: 'password123',
         });
 
-      token = loginRes.body.access_token;
-    });
+      return loginRes.body.access_token as string;
+    }
 
-    it('deve retornar dados do usuário com token JWT válido', () => {
+    it('deve retornar dados do usuário com Authorization Bearer válido', async () => {
+      const token = await loginAndGetToken();
+
       return request(app.getHttpServer())
-        .get('/auth/profile')
+        .get('/auth/me')
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toHaveProperty('message', 'Acesso autorizado');
-          expect(res.body).toHaveProperty('user');
-          expect(res.body.user).toHaveProperty('userId');
-          expect(res.body.user).toHaveProperty('email');
+          expect(res.body).toHaveProperty('userId', 1);
+          expect(res.body).toHaveProperty('email', 'test@example.com');
+          expect(res.body).toHaveProperty('iat');
         });
     });
 
-    it('deve retornar erro 401 sem token JWT', () => {
-      return request(app.getHttpServer())
-        .get('/auth/profile')
-        .expect(401);
+    it('deve retornar erro 401 sem Authorization Bearer', () => {
+      return request(app.getHttpServer()).get('/auth/me').expect(401);
     });
 
-    it('deve retornar erro 401 com token JWT inválido', () => {
-      return request(app.getHttpServer())
-        .get('/auth/profile')
-        .set('Authorization', 'Bearer invalid-token')
-        .expect(401);
-    });
+    it('deve ignorar cookie access_token e retornar 401', async () => {
+      const token = await loginAndGetToken();
 
-    it('deve retornar erro 401 com Authorization header malformado', () => {
       return request(app.getHttpServer())
-        .get('/auth/profile')
-        .set('Authorization', `${token}`) // Sem "Bearer"
+        .get('/auth/me')
+        .set('Cookie', [`access_token=${token}`])
         .expect(401);
     });
   });
 
-  describe('POST /auth/refresh', () => {
-    let token: string;
-
-    beforeAll(async () => {
-      const loginRes = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send({
-          email: 'test@example.com',
-          password: 'password123',
-        });
-
-      token = loginRes.body.access_token;
-    });
-
-    it('deve retornar um novo token JWT válido', () => {
-      return request(app.getHttpServer())
-        .post('/auth/refresh')
-        .set('Authorization', `Bearer ${token}`)
-        .expect(201)
-        .expect((res) => {
-          expect(res.body).toHaveProperty('access_token');
-          expect(typeof res.body.access_token).toBe('string');
-          // O novo token deve ser um JWT válido (3 partes separadas por ponto)
-          expect(res.body.access_token.split('.').length).toBe(3);
-        });
-    });
-
-    it('deve retornar erro 401 sem token JWT', () => {
-      return request(app.getHttpServer())
-        .post('/auth/refresh')
-        .expect(401);
-    });
-
-    it('deve retornar erro 401 com token JWT inválido', () => {
-      return request(app.getHttpServer())
-        .post('/auth/refresh')
-        .set('Authorization', 'Bearer invalid-token')
-        .expect(401);
-    });
-  });
-
-  describe('JWT Token Validation', () => {
-    it('deve preservar dados do usuário através do token refresh', async () => {
-      // Login
-      const loginRes = await request(app.getHttpServer())
-        .post('/auth/login')
-        .send({
-          email: 'user@example.com',
-          password: 'password123',
-        });
-
-      const initialToken = loginRes.body.access_token;
-
-      // Verificar dados originais
-      const profileRes1 = await request(app.getHttpServer())
-        .get('/auth/profile')
-        .set('Authorization', `Bearer ${initialToken}`)
-        .expect(200);
-
-      const initialUser = profileRes1.body.user;
-
-      // Refresh token
-      const refreshRes = await request(app.getHttpServer())
-        .post('/auth/refresh')
-        .set('Authorization', `Bearer ${initialToken}`)
-        .expect(201);
-
-      const newToken = refreshRes.body.access_token;
-
-      // Verificar dados com novo token
-      const profileRes2 = await request(app.getHttpServer())
-        .get('/auth/profile')
-        .set('Authorization', `Bearer ${newToken}`)
-        .expect(200);
-
-      const newUser = profileRes2.body.user;
-
-      // Email deve ser preservado
-      expect(newUser.email).toBe(initialUser.email);
-      expect(newUser.userId).toBe(initialUser.userId);
+  describe('POST /auth/logout', () => {
+    it('não deve existir no Nest', () => {
+      return request(app.getHttpServer()).post('/auth/logout').expect(404);
     });
   });
 });

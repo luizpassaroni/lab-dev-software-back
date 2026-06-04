@@ -8,12 +8,10 @@ describe('AuthService', () => {
 
   const mockJwtService = {
     sign: jest.fn((payload) => {
-      // Simula um JWT válido
       return `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.${Buffer.from(JSON.stringify(payload)).toString('base64')}.signature`;
     }),
-    verify: jest.fn((token) => {
-      // Simula verificação bem-sucedida
-      return { sub: 'user-123', email: 'test@example.com' };
+    verify: jest.fn(() => {
+      return { sub: 123, email: 'test@example.com' };
     }),
   };
 
@@ -38,21 +36,18 @@ describe('AuthService', () => {
 
   describe('generateToken', () => {
     it('deve gerar um token JWT válido', () => {
-      const payload = { sub: 'user-123', email: 'test@example.com' };
+      const payload = { sub: 123, email: 'test@example.com' };
       const result = service.generateToken(payload);
 
-      expect(result).toHaveProperty('access_token');
-      expect(typeof result.access_token).toBe('string');
+      expect(typeof result).toBe('string');
       expect(jwtService.sign).toHaveBeenCalledWith(payload);
     });
 
-    it('deve retornar um objeto com access_token', () => {
-      const payload = { sub: 'user-456', email: 'another@example.com' };
+    it('deve retornar a string assinada', () => {
+      const payload = { sub: 456, email: 'another@example.com' };
       const result = service.generateToken(payload);
 
-      expect(result).toEqual({
-        access_token: expect.any(String),
-      });
+      expect(result).toEqual(expect.any(String));
     });
   });
 
@@ -61,7 +56,7 @@ describe('AuthService', () => {
       const token = 'valid-jwt-token';
       const result = service.validateToken(token);
 
-      expect(result).toEqual({ sub: 'user-123', email: 'test@example.com' });
+      expect(result).toEqual({ sub: 123, email: 'test@example.com' });
       expect(jwtService.verify).toHaveBeenCalledWith(token);
     });
 
@@ -72,16 +67,17 @@ describe('AuthService', () => {
         }),
       };
 
-      // Substituir o mock do jwtService temporariamente
       (service as any).jwtService = mockJwtServiceError;
 
-      expect(() => service.validateToken('invalid-token')).toThrow('Invalid token');
+      expect(() => service.validateToken('invalid-token')).toThrow(
+        'Invalid token',
+      );
     });
   });
 
   describe('createPayload', () => {
     it('deve criar um payload JWT com userId e email', () => {
-      const userId = 'user-789';
+      const userId = 789;
       const email = 'user@example.com';
       const result = service.createPayload(userId, email);
 
@@ -92,7 +88,7 @@ describe('AuthService', () => {
     });
 
     it('deve incluir timestamp de emissão (iat)', () => {
-      const result = service.createPayload('user-id', 'test@example.com');
+      const result = service.createPayload(123, 'test@example.com');
       const now = Math.floor(Date.now() / 1000);
 
       expect(result.iat).toBeLessThanOrEqual(now + 1);

@@ -1,4 +1,3 @@
-import cookieParser from 'cookie-parser';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
@@ -17,8 +16,6 @@ async function bootstrap() {
       excludeExtraneousValues: true,
     }),
   );
-
-  app.use(cookieParser());
 
   await app.listen(process.env.PORT ?? 3000);
 }

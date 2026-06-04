@@ -1,9 +1,9 @@
 import { plainToInstance } from 'class-transformer';
 import {
   IsNumber,
+  IsOptional,
   IsString,
   MinLength,
-  NotContains,
   validateSync,
 } from 'class-validator';
 
@@ -12,6 +12,8 @@ export class EnvironmentVariables {
     this.PORT = port;
     this.JWT_SECRET = jwtSecret;
   }
+
+  @IsOptional()
   @IsNumber()
   PORT: number = 3000;
 
