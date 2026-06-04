@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:18-alpine
+    # Keep this major version pinned. Upgrading PostgreSQL majors requires pg_upgrade
+    # before changing the image tag, otherwise the existing Docker volume may not start.
+    image: postgres:17-alpine
     container_name: uva_postgres_prod
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-uva_admin_prod}
