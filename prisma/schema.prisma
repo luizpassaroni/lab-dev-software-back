@@ -30,12 +30,12 @@ model Rating {
 }
 
 model Watched {
-  id         Int      @id @default(autoincrement())
-  userId     Int
-  tmdbId     Int
-  tmdbType   String
-  watchedAt  DateTime @default(now())
-  user       User     @relation(fields: [userId], references: [id])
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  tmdbId    Int
+  tmdbType  String
+  watchedAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 
   @@unique([userId, tmdbId, tmdbType])
 }

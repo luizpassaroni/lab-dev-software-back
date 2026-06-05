@@ -2,53 +2,81 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Post,
-  Request,
   UseGuards,
   UnauthorizedException,
+  Req,
 } from '@nestjs/common';
-import type { Request as ExpressRequest } from 'express';
+import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt.guard';
+import { UserService } from '../user/user.service';
+import { CreateUserDto } from '../user/dto/create-user.dto';
+import { ResponseCreateUserDto } from '../user/dto/response-create-user.dto';
+import { MeDto } from './dto/me.dto';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly userService: UserService,
+  ) {}
 
   /**
-   * Endpoint de login (exemplo)
-   * Nota: Em produção, você deve validar credenciais contra banco de dados
+   * Endpoint de login
    */
   @Post('login')
-  login(@Body() loginDto: LoginDto) {
-    // TODO: Validar email/password contra banco de dados
-    // TODO: Retornar usuário após validação bem-sucedida
+  @HttpCode(HttpStatus.OK)
+  async login(@Body() loginDto: LoginDto) {
+    const { email, password } = loginDto;
+    const user = await this.userService.findByEmail(email);
+    const isPasswordValid = user
+      ? await bcrypt.compare(password, user.passwordHash)
+      : false;
 
-    // Exemplo: assumindo que credenciais são válidas
-    const payload = this.authService.createPayload(
-      'user-id-example', // substitua com ID real do usuário
-      loginDto.email,
+    if (!user || !isPasswordValid) {
+      throw new UnauthorizedException('Credenciais inválidas');
+    }
+
+    const payload = this.authService.createPayload(user.id, loginDto.email);
+    const accessToken = this.authService.generateToken(payload);
+
+    return {
+      access_token: accessToken,
+      user: new ResponseCreateUserDto(
+        user.id,
+        user.name,
+        user.email,
+        user.createdAt,
+      ),
+    };
+  }
+
+  @Post('register')
+  async register(
+    @Body() createUserDto: CreateUserDto,
+  ): Promise<ResponseCreateUserDto> {
+    const user = await this.userService.create(createUserDto);
+
+    return new ResponseCreateUserDto(
+      user.id,
+      user.name,
+      user.email,
+      user.createdAt,
     );
-
-    return this.authService.generateToken(payload);
   }
 
   /**
-   * Endpoint protegido - requer JWT válido
-   * Acesso: GET /auth/profile com Authorization: Bearer <token>
+   * Acesso: GET /auth/me
    */
-  @Get('profile')
+  @Get('me')
   @UseGuards(JwtAuthGuard)
-  getProfile(
-    @Request()
-    req: ExpressRequest & {
-      user?: { userId: string; email: string; iat?: number };
-    },
-  ) {
-    return {
-      message: 'Acesso autorizado',
-      user: req.user,
-    };
+  getProfile(@Req() request: any) {
+    const user = request.user;
+
+    return new MeDto(user.userId, user.email, user.iat);
   }
 }

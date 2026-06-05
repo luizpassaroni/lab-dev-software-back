@@ -7,6 +7,6 @@ export class LoginDto {
 
   @IsString({ message: 'Senha deve ser uma string' })
   @IsNotEmpty({ message: 'Senha é obrigatória' })
-  @MinLength(6, { message: 'Senha deve ter no mínimo 6 caracteres' })
+  @MinLength(1, { message: 'Senha é obrigatória' })
   password!: string;
 }

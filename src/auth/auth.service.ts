@@ -9,12 +9,10 @@ export class AuthService {
   /**
    * Gera um JWT token para um usuário
    * @param payload Dados do usuário a serem codificados no token
-   * @returns Objeto contendo o access_token
+   * @returns JWT assinado
    */
-  generateToken(payload: JwtPayload) {
-    return {
-      access_token: this.jwtService.sign(payload),
-    };
+  generateToken(payload: JwtPayload): string {
+    return this.jwtService.sign(payload);
   }
 
   /**
@@ -34,7 +32,7 @@ export class AuthService {
    * @param email Email do usuário
    * @returns JwtPayload formatado
    */
-  createPayload(userId: string, email: string): JwtPayload {
+  createPayload(userId: number, email: string): JwtPayload {
     return {
       sub: userId,
       email,
