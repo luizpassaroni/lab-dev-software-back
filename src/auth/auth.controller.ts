@@ -10,13 +10,13 @@ import {
   Req,
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtAuthGuard } from './guards/jwt.guard';
 import { UserService } from '../user/user.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { ResponseCreateUserDto } from '../user/dto/response-create-user.dto';
-import { MeDto } from './dto/me.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -30,6 +30,7 @@ export class AuthController {
    */
   @Post('login')
   @HttpCode(HttpStatus.OK)
+  @Throttle({ default: { ttl: 900_000, limit: 5 } })
   async login(@Body() loginDto: LoginDto) {
     const { email, password } = loginDto;
     const user = await this.userService.findByEmail(email);
@@ -74,9 +75,20 @@ export class AuthController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  getProfile(@Req() request: any) {
-    const user = request.user;
+  async getProfile(@Req() request: any) {
+    const user = await this.userService.findById(request.user.userId);
 
-    return new MeDto(user.userId, user.email, user.iat);
+    if (!user) {
+      throw new UnauthorizedException();
+    }
+
+    return {
+      user: new ResponseCreateUserDto(
+        user.id,
+        user.name,
+        user.email,
+        user.createdAt,
+      ),
+    };
   }
 }
