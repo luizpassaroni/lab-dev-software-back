@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
+import { ThrottlerStorage } from '@nestjs/throttler';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 
@@ -33,7 +34,17 @@ describe('Auth E2E Tests', () => {
         return Promise.resolve(user);
       }),
       findUnique: jest.fn(({ where }) => {
-        return Promise.resolve(users.get(where.email) ?? null);
+        if (where.email) {
+          return Promise.resolve(users.get(where.email) ?? null);
+        }
+        if (where.id) {
+          for (const user of users.values()) {
+            if (user.id === where.id) {
+              return Promise.resolve(user);
+            }
+          }
+        }
+        return Promise.resolve(null);
       }),
     },
   };
@@ -46,6 +57,15 @@ describe('Auth E2E Tests', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(prismaMock)
+      .overrideProvider(ThrottlerStorage)
+      .useValue({
+        increment: async () => ({
+          totalHits: 1,
+          timeToExpire: 60,
+          isBlocked: false,
+          timeToBlockExpire: 0,
+        }),
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -187,9 +207,12 @@ describe('Auth E2E Tests', () => {
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
-          expect(res.body).toHaveProperty('userId', 1);
-          expect(res.body).toHaveProperty('email', 'test@example.com');
-          expect(res.body).toHaveProperty('iat');
+          expect(res.body.user).toEqual({
+            id: 1,
+            name: 'Test User',
+            email: 'test@example.com',
+            createdAt: '2026-01-01T00:00:00.000Z',
+          });
         });
     });
 
