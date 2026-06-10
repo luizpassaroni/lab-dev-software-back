@@ -8,9 +8,10 @@ import {
 } from 'class-validator';
 
 export class EnvironmentVariables {
-  constructor(port: number, jwtSecret: string) {
+  constructor(port: number, jwtSecret: string, internalApiKey: string) {
     this.PORT = port;
     this.JWT_SECRET = jwtSecret;
+    this.INTERNAL_API_KEY = internalApiKey;
   }
 
   @IsOptional()
@@ -22,6 +23,12 @@ export class EnvironmentVariables {
     message: 'O JWT_SECRET precisa ter no mínimo 16 caracteres.',
   })
   JWT_SECRET: string;
+
+  @IsString()
+  @MinLength(16, {
+    message: 'O INTERNAL_API_KEY precisa ter no mínimo 16 caracteres.',
+  })
+  INTERNAL_API_KEY: string;
 }
 
 export function validate(config: Record<string, unknown>) {

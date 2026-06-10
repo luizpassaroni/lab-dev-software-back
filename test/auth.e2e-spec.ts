@@ -4,6 +4,7 @@ import request from 'supertest';
 import { ThrottlerStorage } from '@nestjs/throttler';
 import { AppModule } from '../src/app.module';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { INTERNAL_KEY } from './setup-e2e';
 
 type StoredUser = {
   id: number;
@@ -85,11 +86,14 @@ describe('Auth E2E Tests', () => {
   });
 
   function registerUser(email = 'test@example.com') {
-    return request(app.getHttpServer()).post('/auth/register').send({
-      name: 'Test User',
-      email,
-      password: 'password123',
-    });
+    return request(app.getHttpServer())
+      .post('/auth/register')
+      .set('X-Internal-Key', INTERNAL_KEY)
+      .send({
+        name: 'Test User',
+        email,
+        password: 'password123',
+      });
   }
 
   describe('POST /auth/register', () => {
@@ -118,6 +122,7 @@ describe('Auth E2E Tests', () => {
     it('deve retornar erro 400 com senha menor que 8 caracteres', () => {
       return request(app.getHttpServer())
         .post('/auth/register')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           name: 'Test User',
           email: 'test@example.com',
@@ -133,6 +138,7 @@ describe('Auth E2E Tests', () => {
 
       return request(app.getHttpServer())
         .post('/auth/login')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           email: 'test@example.com',
           password: 'password123',
@@ -157,6 +163,7 @@ describe('Auth E2E Tests', () => {
 
       return request(app.getHttpServer())
         .post('/auth/login')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           email: 'test@example.com',
           password: 'wrong-password',
@@ -167,6 +174,7 @@ describe('Auth E2E Tests', () => {
     it('deve retornar erro 400 com email inválido', () => {
       return request(app.getHttpServer())
         .post('/auth/login')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           email: 'invalid-email',
           password: 'password123',
@@ -177,6 +185,7 @@ describe('Auth E2E Tests', () => {
     it('deve retornar erro 400 se password estiver vazio', () => {
       return request(app.getHttpServer())
         .post('/auth/login')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           email: 'test@example.com',
           password: '',
@@ -191,6 +200,7 @@ describe('Auth E2E Tests', () => {
 
       const loginRes = await request(app.getHttpServer())
         .post('/auth/login')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .send({
           email: 'test@example.com',
           password: 'password123',
@@ -204,6 +214,7 @@ describe('Auth E2E Tests', () => {
 
       return request(app.getHttpServer())
         .get('/auth/me')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .set('Authorization', `Bearer ${token}`)
         .expect(200)
         .expect((res) => {
@@ -217,7 +228,10 @@ describe('Auth E2E Tests', () => {
     });
 
     it('deve retornar erro 401 sem Authorization Bearer', () => {
-      return request(app.getHttpServer()).get('/auth/me').expect(401);
+      return request(app.getHttpServer())
+        .get('/auth/me')
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .expect(401);
     });
 
     it('deve ignorar cookie access_token e retornar 401', async () => {
@@ -225,6 +239,7 @@ describe('Auth E2E Tests', () => {
 
       return request(app.getHttpServer())
         .get('/auth/me')
+        .set('X-Internal-Key', INTERNAL_KEY)
         .set('Cookie', [`access_token=${token}`])
         .expect(401);
     });
@@ -232,7 +247,10 @@ describe('Auth E2E Tests', () => {
 
   describe('POST /auth/logout', () => {
     it('não deve existir no Nest', () => {
-      return request(app.getHttpServer()).post('/auth/logout').expect(404);
+      return request(app.getHttpServer())
+        .post('/auth/logout')
+        .set('X-Internal-Key', INTERNAL_KEY)
+        .expect(404);
     });
   });
 });
