@@ -10,6 +10,7 @@ import { TitlesModule } from './titles/titles.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UserModule } from './user/user.module';
 import { XClientIpThrottlerGuard } from './common/guards/x-client-ip.throttler-guard';
+import { InternalKeyGuard } from './common/guards/internal-key.guard';
 import { validate } from './env.validation';
 
 @Module({
@@ -31,6 +32,10 @@ import { validate } from './env.validation';
   controllers: [AppController],
   providers: [
     AppService,
+    {
+      provide: APP_GUARD,
+      useClass: InternalKeyGuard,
+    },
     {
       provide: APP_GUARD,
       useClass: XClientIpThrottlerGuard,
