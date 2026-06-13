@@ -93,7 +93,7 @@
 - Query params: `q=string`, `page=number`
 
 **Hop 2 — Next → Nest**
-- Headers: `X-Internal-Key: <INTERNAL_API_KEY>`, `Authorization: Bearer <token>`
+- Headers: `X-Internal-Key: <INTERNAL_API_KEY>`
 - Query params: `q=string`, `page=number`
 - Response 200:
 ```json
@@ -101,17 +101,19 @@
   "results": [
     {
       "tmdbId": "number",
-      "type": "movie | tv",
+      "tmdbType": "MOVIE | TV",
       "title": "string",
-      "poster": "string (URL)",
-      "year": "number"
+      "year": "number | null",
+      "posterUrl": "string (URL) | null",
+      "badge": "Filme | Série"
     }
   ],
   "page": "number",
-  "totalPages": "number"
+  "totalPages": "number",
+  "hasMore": "boolean"
 }
 ```
-- Erros: `400` query ausente, `401` token inválido
+- Erros: `400` query ausente
 
 ---
 
@@ -122,22 +124,33 @@
 - Params: `type = movie | tv`, `id = number`
 
 **Hop 2 — Next → Nest**
-- Headers: `X-Internal-Key: <INTERNAL_API_KEY>`, `Authorization: Bearer <token>`
+- Headers: `X-Internal-Key: <INTERNAL_API_KEY>`
 - Params: `type`, `id`
 - Response 200:
 ```json
 {
   "tmdbId": "number",
-  "type": "movie | tv",
+  "tmdbType": "MOVIE | TV",
   "title": "string",
+  "year": "number | null",
   "overview": "string",
-  "poster": "string (URL)",
+  "posterUrl": "string (URL) | null",
+  "backdropUrl": "string (URL) | null",
+  "runtime": "number | null",
+  "seasons": "number | null",
+  "tmdbRating": "number",
   "genres": ["string"],
-  "releaseDate": "string",
-  "watchProvidersBR": ["string"]
+  "cast": [
+    { "name": "string", "character": "string", "profileUrl": "string (URL) | null" }
+  ],
+  "providers": {
+    "flatrate": [{ "name": "string", "logoUrl": "string (URL) | null" }],
+    "rent": [{ "name": "string", "logoUrl": "string (URL) | null" }],
+    "buy": [{ "name": "string", "logoUrl": "string (URL) | null" }]
+  }
 }
 ```
-- Erros: `401` token inválido, `404` título não encontrado
+- Erros: `404` título não encontrado
 
 ---
 
