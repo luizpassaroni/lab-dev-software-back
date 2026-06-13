@@ -14,9 +14,9 @@
 - Body:
 ```json
 {
-  "name": "string (2-60 chars)",
+  "name": "string (3-50 chars)",
   "email": "string",
-  "password": "string"
+  "password": "string (mín. 8 caracteres)"
 }
 ```
 - Response 201:
@@ -28,6 +28,8 @@
   "createdAt": "string (ISO 8601)"
 }
 ```
+
+- ⚠️ Cadastro não autentica: nenhum cookie de sessão é setado e o usuário segue para o login.
 
 **Hop 2 — Next → Nest**
 - Headers: `X-Internal-Key: <INTERNAL_API_KEY>`, `Content-Type: application/json`
@@ -91,19 +93,16 @@
 ### 3. POST /api/auth/logout
 
 **Hop 1 — Browser → Next**
-- Headers: `Authorization: Bearer <token>`
-- ⚠️ Logout tratado apenas no Next (invalida cookie/sessão) — não há endpoint no Nest.
-- Response 200:
-```json
-{ "message": "ok" }
-```
+- Headers: nenhum (o cookie `session` HttpOnly é enviado automaticamente pelo browser)
+- ⚠️ Logout é 100% no Next: o BFF apaga o cookie `session` (`Set-Cookie: session=; Max-Age=0`). Não há endpoint no Nest, sem chamada server-to-server.
+- Response 204 (sem corpo)
 
 ---
 
 ### 4. GET /api/auth/me
 
 **Hop 1 — Browser → Next**
-- Headers: `Authorization: Bearer <token>`
+- Headers: nenhum (o cookie `session` HttpOnly é enviado automaticamente pelo browser)
 - Response 200:
 ```json
 {
@@ -136,7 +135,7 @@
 ### 5. GET /api/titles/search
 
 **Hop 1 — Browser → Next**
-- Headers: `Authorization: Bearer <token>`
+- Headers: nenhum (rota pública — não exige login)
 - Query params: `q=string`, `page=number`
 
 **Hop 2 — Next → Nest**
@@ -167,7 +166,7 @@
 ### 6. GET /api/titles/:type/:id
 
 **Hop 1 — Browser → Next**
-- Headers: `Authorization: Bearer <token>`
+- Headers: nenhum (rota pública — não exige login)
 - Params: `type = movie | tv`, `id = number`
 
 **Hop 2 — Next → Nest**
@@ -207,3 +206,4 @@
 |---|---|---|
 | 2026-06-13 | Documento inicial criado | IgorRocha1603 |
 | 2026-06-13 | Auth (register/login/me) corrigido conforme a implementação do back | caioplaninschek |
+| 2026-06-13 | Logout `204` e remoção do `Bearer` no browser (cookie `session` automático); rotas de catálogo marcadas como públicas; restrições de cadastro alinhadas ao DTO | caioplaninschek |

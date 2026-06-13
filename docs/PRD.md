@@ -1,16 +1,55 @@
 # PRD — Guia de Streaming
 
-**Versão:** 1.1
+**Versão:** 2.0
 **Autor:** Caio Planinschek (PO)
-**Data:** 26/05/2026
-**Audiência:** time do projeto Guia de Streaming
+**Data:** 30/05/2026
+**Audiência:** time do projeto Guia de Streaming (devs back, devs front, QA)
 **Status:** ativo
+**Supersede:** v1.1 (26/05/2026). Mudanças principais desta versão: **arquitetura de auth migrada para BFF** (§6/§8/§10/§15), **cronograma recomprimido para a entrega de 02/07** (§1/§13/§16), **tiering de prioridade P0/P1 dentro do MVP** (§5.1), e **reestruturação didática** (novo §0, DoD por user story, matriz de rastreabilidade em §13).
+
+---
+
+## 0. Como ler este PRD
+
+> Esta seção existe para que **qualquer integrante** consiga navegar o documento, derivar tarefas e implementar sem reinterpretar o produto do zero. Leia-a antes de tudo.
+
+### 0.1 Ordem de leitura
+
+1. **Este PRD** — o quê e o porquê do produto inteiro.
+2. **`CONTEXT.md` (glossário canônico)** — vocabulário fechado do projeto. Em conflito de termo, o glossário vence.
+3. **Plano da sprint** (`sprint-N-plan.md`) — o recorte operacional do bloco atual.
+4. **Issue** — a unidade de trabalho. Cada issue referencia `PRD §X`.
+
+### 0.2 Âncoras estáveis
+
+Os números de seção (`§1`…`§17`) são **estáveis**: issues e specs citam `PRD §6`, `PRD §8` etc. e esses ponteiros não mudam entre versões. Conteúdo é atualizado **in-place**; seções novas entram como `§0` (topo) ou no fim, nunca renumerando o miolo.
+
+### 0.3 Legendas
+
+**Prioridade** (ver §5.1):
+- **P0** — núcleo inegociável. Tem que estar de pé para a **demo + nota** de 02/07. Se um P0 está em risco, é o time inteiro que para para destravá-lo.
+- **P1** — MVP comprometido, mas é a **primeira linha de corte** se o tempo apertar. Está no plano; não é promessa de sangue.
+- **stretch (§5.3)** — só se sobrar tempo. **Nunca** foi prometido; cortar um stretch não é falha.
+
+**Status:** ✅ feito · ⏳ pendente · ❓ incerto / a confirmar.
+
+### 0.4 Terminologia
+
+Use os termos canônicos do `CONTEXT.md`: **título** (filme ou série), **avaliação** (nota inteira 1-10), **visto**, **favorito**, **onde assistir / provedor**, **ficha do título**, e os de auth — **BFF**, **sessão** (cookie `session`), **Bearer interno**, **chave interna (`X-Internal-Key`)**. Não introduza sinônimos (`mídia`, `conteúdo`, `token no localStorage`, `gateway` etc.).
+
+### 0.5 Para quem implementa
+
+- **Critério de aceite vira checklist de issue** — cada `- [ ]` nos épicos (§6) é uma asserção verificável.
+- **Mudança cirúrgica:** toque só no que a tarefa exige; preserve estilo e decisões existentes; sinalize problemas fora do escopo em vez de resolvê-los no mesmo PR.
+- **Auth segue a spec BFF** — não invente fluxo de cookie/token; o desenho está fechado em §8.
 
 ---
 
 ## 1. Resumo executivo
 
-O **Guia de Streaming** é um webapp para usuários brasileiros descobrirem **em qual catálogo de streaming** um filme ou série está disponível, consolidando busca, ficha completa e provedores em uma única interface, sem precisar consultar JustWatch, IMDb e o app de cada streaming separadamente. O MVP cobre cadastro, busca, ficha de filme/série, indicação de "onde assistir" via TMDB API (região BR), avaliação 1-10, marcação de "visto", favoritos e tema claro/escuro, em ~8 semanas com time de 13 integrantes.
+O **Guia de Streaming** é um webapp para usuários brasileiros descobrirem **em qual catálogo de streaming** um filme ou série está disponível, consolidando busca, ficha completa e provedores em uma única interface, sem precisar consultar JustWatch, IMDb e o app de cada streaming separadamente. O MVP cobre cadastro, busca, ficha de filme/série, indicação de "onde assistir" via TMDB API (região BR), avaliação 1-10, marcação de "visto", favoritos, perfil e tema claro/escuro.
+
+A aplicação é construída sobre uma arquitetura **BFF (Backend-for-Frontend)**: o navegador fala **só** com o Next.js (same-origin), que fala com a API Nest.js **server-to-server**. A entrega final é **02/07/2026** — restam **~4,5 semanas** a partir do início desta versão (30/05), com um time de **13 integrantes** de disponibilidade variável. O escopo é deliberadamente enxuto e priorizado (§5.1) para caber nesse prazo.
 
 ---
 
@@ -26,7 +65,7 @@ Brasileiros entre 18-45 anos que assinam dois ou mais serviços de streaming e c
 
 ### 2.3 Por que agora (contexto acadêmico)
 
-O projeto é a entrega da disciplina Laboratório de Desenvolvimento de Software (UVA 2026.1). Combina prática real de produto (PO, levantamento, backlog) com construção de aplicação web full-stack que integra API externa pública (TMDB).
+O projeto é a entrega da disciplina Laboratório de Desenvolvimento de Software (UVA 2026.1), com **entrega final em 02/07/2026**. Combina prática real de produto (PO, levantamento, backlog) com construção de aplicação web full-stack que integra API externa pública (TMDB).
 
 ---
 
@@ -40,7 +79,7 @@ O projeto é a entrega da disciplina Laboratório de Desenvolvimento de Software
 
 ### 3.2 Objetivos pedagógicos
 
-- Praticar desenvolvimento full-stack com Next.js + Nest.js.
+- Praticar desenvolvimento full-stack com Next.js + Nest.js, integrados via **BFF**.
 - Exercitar modelagem relacional com Prisma + PostgreSQL.
 - Integrar API externa (TMDB) com tratamento de erro e cache.
 - Trabalhar em time grande com cerimônias ágeis enxutas, organizando via GitHub Projects/Issues.
@@ -49,7 +88,7 @@ O projeto é a entrega da disciplina Laboratório de Desenvolvimento de Software
 
 - [ ] Usuário não-logado consegue buscar "Oppenheimer" e ver os streamings BR onde assistir, em menos de 2 cliques a partir da home.
 - [ ] Usuário logado consegue avaliar um filme com nota 1-10; sistema marca automaticamente como "visto".
-- [ ] Apresentação final demonstra o fluxo completo em ambiente local sem crash.
+- [ ] Apresentação final demonstra o fluxo completo **no ambiente publicado online** (Vercel + Azure VM) sem crash.
 - [ ] Repositórios entregues com README executável por terceiro (instalável do zero).
 - [ ] Documentação acadêmica entregue no template UVA, com DER, diagrama de arquitetura, telas e backlog.
 
@@ -75,18 +114,27 @@ O projeto é a entrega da disciplina Laboratório de Desenvolvimento de Software
 
 ## 5. Escopo do MVP
 
-### 5.1 Dentro do escopo
+### 5.1 Dentro do escopo — com tiering de prioridade
 
-- Cadastro e login (email + senha; hash bcrypt/argon2).
+> O MVP é dividido em **P0** (núcleo inegociável para 02/07) e **P1** (comprometido, mas primeira linha de corte sob risco de prazo). Ver legenda em §0.3. A divisão dá ao time uma **linha de corte explícita**: sob pressão, protege-se o P0 e sacrifica-se P1 antes de tocar em qualidade ou prazo.
+
+**P0 — núcleo demonstrável (tem que ir):**
+
+- Cadastro e login (email + senha; hash bcrypt/argon2), **via BFF** (sessão por cookie `session` HttpOnly setado pelo Next — ver §8).
 - Busca de filmes **e séries** (TMDB API, região BR).
 - Ficha do título: sinopse, poster, elenco, duração/temporadas, nota TMDB, provedores BR.
 - Indicação "onde assistir" com destaque visual (área dedicada na ficha).
-- Avaliação 1-10 (usuário logado; marca como visto automaticamente).
-- Marcação manual de "visto" e "favorito".
+- **Avaliação 1-10** (usuário logado; marca como visto automaticamente) — é critério de sucesso §3.3.
+- **Deploy online** (Vercel + Azure VM) — exigência do Prof. Paulo Andrade.
+- Documentação acadêmica + README executável.
+
+**P1 — comprometido, corta primeiro se faltar tempo:**
+
+- Marcação manual de "visto" e de "favorito".
 - Perfil do usuário: nome, data de criação, totais (vistos / avaliados / favoritos) e listas simples dos 30 itens mais recentes de cada uma.
-- Home com barra de busca, destaques e filtros por gênero.
-- Dark mode e light mode (obrigatório).
-- Responsividade básica em desktop (foco principal).
+- Home com destaques e filtros por gênero (single-select).
+- Dark mode e light mode.
+- Responsividade básica em desktop (foco principal) → tablets/celulares.
 
 ### 5.2 Fora do escopo
 
@@ -109,18 +157,21 @@ Registrado para não voltar atrás sem decisão explícita:
 - Filtros avançados na busca (década, país, gênero combinado).
 - Exibição da nota IMDb (se TMDB expuser).
 - Trailer embedado na ficha.
-- **Nota agregada do Guia de Streaming** na ficha — média das avaliações dos usuários do nosso app, exibida apenas se houver pelo menos N avaliações (N a definir na implementação; sugestão inicial: 5). Distinta de **Nota TMDB** (vem da TMDB) e de **Minha nota** (individual, vista só pelo dono no perfil).
-- **Filtros, ordenação selecionável e paginação nas listas do perfil** (vistos/avaliados/favoritos) — MVP traz só os 30 mais recentes ordenados por data; stretch traz busca dentro da lista, ordenação por título/data/nota, e paginação para histórico inteiro.
-- **Filtro por gênero dentro de resultados de busca por texto** e **multi-select de gêneros** (ex: "Ação + Comédia") — MVP traz só single-select na home; stretch combina filtros com a busca textual e permite combinar gêneros.
-- **Refresh token automático** — MVP usa JWT de 24h sem renovação; stretch adiciona refresh token com rotação para renovação silenciosa em background, eliminando a tela de login durante a sessão.
-- **Confirmação de email + recuperação de senha** — pacote acoplado, depende de integrar serviço de envio de email (Resend / SendGrid free / equivalente); inclui telas "confirme seu email", token de ativação, fluxo "esqueci minha senha", token de reset com expiração curta.
-- **Blocklist de tokens no logout (logout server-side)** — MVP descarta token só no client; stretch adiciona tabela de tokens revogados consultada por guard no back, garantindo invalidação imediata no logout.
+- **Nota agregada do Guia de Streaming** na ficha — média das avaliações dos usuários do nosso app, exibida apenas se houver pelo menos N avaliações (N a definir; sugestão inicial: 5). Distinta de **Nota TMDB** e de **Minha nota**.
+- **Filtros, ordenação selecionável e paginação nas listas do perfil** — MVP traz só os 30 mais recentes por data.
+- **Filtro por gênero dentro de resultados de busca por texto** e **multi-select de gêneros** — MVP traz só single-select na home.
+- **Refresh token automático** — MVP usa JWT de 24h sem renovação; stretch adiciona refresh token com rotação. **(Nota: implementação prematura de refresh chegou no PR #21 — fica desligada/removida até virar stretch, ver §15.)**
+- **Confirmação de email + recuperação de senha** — pacote acoplado, depende de integrar serviço de envio de email (Resend / SendGrid free / equivalente).
+- **Blocklist de tokens no logout (logout server-side)** — MVP faz logout no BFF apagando o cookie `session` no Next, mas **não rastreia tokens revogados**; o JWT segue tecnicamente válido até expirar em 24h. Stretch adiciona a tabela de revogados consultada por guard no Nest.
+- **CSRF token** — MVP aceita o risco com `SameSite=Lax`; stretch adiciona token anti-CSRF.
 
 ---
 
 ## 6. Funcionalidades — épicos e user stories
 
-### Épico E1 — Autenticação
+> Cada US tem critérios de aceite (checklist) + uma linha **DoD** (Definition of Done — o sinal observável de "pronto"). Prioridade e sprint de cada US estão na matriz de rastreabilidade (§13.1).
+
+### Épico E1 — Autenticação (BFF)
 
 - **US-1.1** Como visitante, quero criar uma conta com email e senha para acessar funcionalidades logadas.
   - [ ] Validação básica de email via regex (presença de `@` e ponto depois) — sem chamada externa, sem MX lookup.
@@ -128,36 +179,45 @@ Registrado para não voltar atrás sem decisão explícita:
   - [ ] Hash da senha no banco com bcrypt ou argon2 (nunca em texto plano, nunca hash simples como MD5/SHA1).
   - [ ] Email é único no banco (`@unique` no Prisma).
   - [ ] **Nome:** trim automático; mínimo 2 caracteres após trim; máximo 60; aceita letras (com acento), números, espaços, hífen e apóstrofe; **não exige unicidade**.
+  - [ ] Cadastro **não** faz auto-login (cria conta → vai para a tela de login). **Sem cookie** no cadastro.
+  - **DoD:** `POST /api/auth/register` cria o usuário com hash; email duplicado retorna 409; nenhum cookie é setado.
 
 - **US-1.2** Como usuário, quero fazer login para acessar minha conta.
-  - [ ] Sessão via JWT no header `Authorization: Bearer`.
-  - [ ] Token com expiração de **24h**.
-  - [ ] Ao expirar, próxima requisição protegida retorna 401 e o front redireciona para a tela de login.
-  - [ ] **Rate limit** no endpoint de login: máximo 5 tentativas a cada 15 minutos por IP (`@nestjs/throttler`); excedido retorna 429.
+  - [ ] **Sessão via cookie `session` HttpOnly first-party no Next** (setado pelo BFF). O JWT trafega como **Bearer só no canal interno** Next→Nest; o JS do browser nunca lê o token (ver §8).
+  - [ ] Token (JWT) com expiração de **24h**; cookie com `Max-Age=86400` casado.
+  - [ ] Ao expirar, a próxima requisição protegida (via `/api/auth/me`) retorna 401 e o front redireciona para a tela de login.
+  - [ ] **Rate limit** no login: máximo 5 tentativas a cada 15 minutos por IP (`@nestjs/throttler` no Nest, lendo `X-Client-IP` repassado pelo Next); excedido retorna 429.
+  - **DoD:** `POST /api/auth/login` com credenciais válidas responde `200 {user}` e seta `Set-Cookie: session=…`; F5 mantém a sessão via `/api/auth/me`; 6ª tentativa em 15min retorna 429.
 
 - **US-1.3** Como usuário, quero fazer logout.
-  - [ ] Logout é **só client-side** no MVP: front apaga o token do storage do navegador.
-  - [ ] **Sem blocklist no back** — token continua tecnicamente válido até expirar naturalmente em 24h (blocklist server-side movido para §5.3).
+  - [ ] Logout é **100% no BFF**: o front chama `POST /api/auth/logout`; o **Next apaga o cookie `session`** (`Max-Age=0`). Sem endpoint no Nest, sem chamada server-to-server.
+  - [ ] **Sem blocklist no back** — o token segue tecnicamente válido até expirar em 24h (blocklist é stretch §5.3). Ganho do BFF: depois do logout o browser não tem mais como apresentar o token, pois ele só vivia no cookie HttpOnly que o Next acabou de apagar.
+  - **DoD:** clicar "Sair" chama `POST /api/auth/logout`, o cookie some, e uma chamada subsequente a `/api/auth/me` retorna 401.
 
 ### Épico E2 — Catálogo (busca e ficha)
 
 - **US-2.1** Como visitante ou logado, quero buscar por filme ou série pelo nome.
+  - [ ] A busca passa pelo BFF: o browser chama `GET /api/titles/search` (same-origin); o Next faz proxy para `GET /titles/search` no Nest. A TMDB key nunca vai ao browser.
   - [ ] Tempo de resposta dentro do orçamento de §8 (200ms cache-hit / 2s cache-miss).
   - [ ] **Filmes e séries vêm juntos** em uma única lista (back usa `/search/multi`, filtra fora resultados de pessoa).
   - [ ] Cards mostram poster + título + ano + **badge visual indicando filme ou série**.
   - [ ] Paginação via **botão "Carregar mais" no rodapé** (20 resultados por página da TMDB; cada clique acumula mais 20).
   - [ ] Quando não há mais páginas, esconder o botão.
   - [ ] **Estado "0 resultados":** ícone discreto + texto "Nenhum resultado para '<query>'. Tente outro termo.".
+  - **DoD:** buscar "Oppenheimer" retorna cards com badge correto; "Carregar mais" acumula; estado 0-resultados aparece para query sem match.
 
 - **US-2.2** Como visitante ou logado, quero ver a ficha completa de um título.
   - [ ] Sinopse, poster, elenco principal, duração/temporadas, nota TMDB.
   - [ ] Tags de gênero.
+  - [ ] Dados vêm do Nest (proxy do Next quando a chamada for browser-facing); TMDB sempre via back.
+  - **DoD:** abrir um título da busca renderiza a ficha completa com a área de "onde assistir" (US-3.1) embutida.
 
 - **US-2.3** Como visitante ou logado, quero descobrir títulos navegando por gênero a partir da home.
   - [ ] Chips horizontais clicáveis no topo da home: "Todos | Ação | Comédia | Drama | Terror | ..." (lista vem da TMDB via `/genre/movie/list` + `/genre/tv/list` em PT-BR, com cache permanente no back).
   - [ ] **Single-select**: um gênero ativo por vez; clicar no chip ativo de novo volta para "Todos".
   - [ ] Quando um gênero é selecionado, exibir destaques daquele gênero via TMDB `/discover/movie?with_genres=X` (e equivalente `/discover/tv`).
   - [ ] Filtro **não** atua dentro de resultados de busca por texto no MVP (vai para §5.3).
+  - **DoD:** selecionar "Ação" na home troca os destaques para títulos de ação; clicar de novo volta para "Todos".
 
 ### Épico E3 — Onde assistir
 
@@ -165,7 +225,8 @@ Registrado para não voltar atrás sem decisão explícita:
   - [ ] Área visualmente destacada na ficha (definida no design).
   - [ ] Logos dos provedores listados.
   - [ ] Categorias TMDB: flatrate (assinatura), rent (aluguel), buy (compra) — exibir pelo menos flatrate.
-  - [ ] **Estado "sem provedor BR":** quando a TMDB não retorna provedores para `region=BR`, exibir mensagem discreta "Este título não está disponível em provedores de streaming no Brasil." dentro da área de "Onde assistir"; resto da ficha (sinopse, poster, elenco, nota TMDB) continua normalmente.
+  - [ ] **Estado "sem provedor BR":** quando a TMDB não retorna provedores para `region=BR`, exibir "Este título não está disponível em provedores de streaming no Brasil." dentro da área de "Onde assistir"; o resto da ficha continua normalmente.
+  - **DoD:** ficha de um título com provedor BR mostra os logos por categoria; ficha de título sem provedor BR mostra o estado vazio sem quebrar o resto.
 
 ### Épico E4 — Histórico do usuário
 
@@ -174,10 +235,13 @@ Registrado para não voltar atrás sem decisão explícita:
   - [ ] Não permite desmarcar "visto" enquanto houver avaliação registrada.
   - [ ] Trocar a nota **atualiza** a avaliação existente, sem criar registro duplicado e sem confirmação extra.
   - [ ] Remover a avaliação é permitido; se o "visto" foi marcado pela própria avaliação (`origem = "auto"`), o "visto" cai junto; se foi marcado manualmente antes (`origem = "manual"`), o "visto" permanece.
+  - **DoD:** avaliar com nota 8 persiste a avaliação e marca visto-auto; trocar para 6 atualiza sem duplicar; remover a avaliação derruba o visto-auto e preserva o visto-manual.
 
 - **US-4.2** Como logado, quero marcar título como visto sem precisar avaliar (`Watched.origem = "manual"`).
+  - **DoD:** marcar visto manual num título sem avaliação registra `Watched.origem = "manual"`.
 
 - **US-4.3** Como logado, quero favoritar título.
+  - **DoD:** favoritar/desfavoritar alterna o `Favorite`, independente de visto e avaliação.
 
 - **US-4.4** Como logado, quero ver meu perfil com totais **e listas simples** (vistos / avaliados / favoritos).
   - [ ] Três contadores no topo: vistos, avaliados, favoritos.
@@ -186,6 +250,7 @@ Registrado para não voltar atrás sem decisão explícita:
   - [ ] Limite de 30 itens mais recentes por lista — sem paginação no MVP.
   - [ ] Sem filtros internos no MVP (filtros, ordenação selecionável e paginação vão para §5.3).
   - [ ] Na lista de avaliados, exibir também a nota dada pelo usuário.
+  - **DoD:** perfil mostra os 3 totais corretos e as 3 listas (30 mais recentes), com a nota nos avaliados.
 
 ### Épico E5 — Tema e UI
 
@@ -193,8 +258,10 @@ Registrado para não voltar atrás sem decisão explícita:
   - [ ] **Default na primeira visita:** segue o sistema operacional via CSS `prefers-color-scheme`; fallback para light se o sistema não opinar.
   - [ ] Toggle (ícone sol/lua) sempre visível no header global, canto direito.
   - [ ] Preferência persistida no navegador (localStorage) — uma vez tocado, a escolha do usuário sobrescreve o sistema.
+  - **DoD:** o toggle alterna o tema, persiste após F5, e a primeira visita respeita o `prefers-color-scheme`.
 
 - **US-5.2** Como usuário, quero usar o site com layout responsivo básico em desktop.
+  - **DoD:** as telas principais (home, busca, ficha, perfil) não quebram em larguras de tablet/celular via breakpoints CSS.
 
 ---
 
@@ -202,15 +269,15 @@ Registrado para não voltar atrás sem decisão explícita:
 
 ### 7.1 Onboarding → primeira busca
 
-Visitante chega na home → vê barra de busca + destaques → pode pesquisar sem login → clica em título → vê ficha → vê "onde assistir" → se quer avaliar/favoritar, é levado para o cadastro/login → após login, volta para a ficha.
+Visitante chega na home → vê barra de busca + destaques → pode pesquisar sem login (`/api/titles/search` same-origin) → clica em título → vê ficha → vê "onde assistir" → se quer avaliar/favoritar, é levado para o cadastro/login → após login, volta para a ficha.
 
 ### 7.2 Avaliação que marca como visto
 
 Usuário logado abre ficha → clica em avaliar → escolhe nota 1-10 → confirma → sistema persiste avaliação + marca `Watched` automaticamente → ficha atualiza estado visual.
 
-### 7.3 Busca → "onde assistir"
+### 7.3 Busca → "onde assistir" (dois hops do BFF)
 
-Usuário (qualquer) digita query → backend chama TMDB `/search/multi` → retorna lista → usuário clica → backend chama TMDB `/movie/{id}` ou `/tv/{id}` + `/watch/providers` com `region=BR` → frontend renderiza ficha com área destacada de provedores.
+Usuário (qualquer) digita query → browser chama `GET /api/titles/search` no **Next** (same-origin) → Next faz proxy para `GET /titles/search` no **Nest** (com `X-Internal-Key`) → Nest chama TMDB `/search/multi` → retorna lista → usuário clica → Nest chama TMDB `/movie/{id}` ou `/tv/{id}` + `/watch/providers` com `region=BR` → frontend renderiza ficha com área destacada de provedores. **A TMDB key vive só no Nest; o browser nunca a vê.**
 
 ---
 
@@ -224,42 +291,85 @@ Usuário (qualquer) digita query → backend chama TMDB `/search/multi` → reto
   - Ficha do título (`/movie/{id}`, `/tv/{id}`): **24h**.
   - Provedores (`/movie/{id}/watch/providers`, equivalente tv): **12h**.
   - Busca (`/search/multi`): **1h**.
-- **Autenticação:** JWT via `@nestjs/jwt` + `passport-jwt`; token com expiração de **24h**; **sem refresh token no MVP** (movido para §5.3 stretch); ao expirar, app redireciona para tela de login; secret em variável de ambiente (`.env`), nunca commitada.
-- **Segurança:** hash de senha com **bcrypt** ou **argon2** (nunca texto plano nem hash simples); validação de input em todos os endpoints (`class-validator` via Nest DTOs); **HTTPS obrigatório em produção em ambos os lados** — Vercel cobre o front automaticamente; o back resolve via Caddy/Traefik no `docker-compose` (Let's Encrypt automático com domínio próprio) ou Cloudflare grátis em modo proxy na frente da VM. Sem cobertura HTTPS no back, o front publicado na Vercel (HTTPS) é bloqueado por mixed content. **Rate limit** no endpoint de login (5 tentativas / 15 min por IP via `@nestjs/throttler`).
-- **Deploy:** aplicação **deve estar acessível online** (exigência do Prof. Paulo Andrade). Stack escolhida:
-  - **Front (Next.js): Vercel** — integração nativa, deploy automático via GitHub.
+
+### 8.1 Arquitetura de autenticação (BFF)
+
+> Desenho fechado em 30/05/2026.
+
+O browser fala **só** com o Next (same-origin). O Next fala com o Nest **server-to-server** e é a **única** origem que acessa o Nest, que fica **fechado** pela chave interna. Toda chamada browser-facing — **auth + busca** — passa por route handlers `/api/*` do Next.
+
+```
+[Browser] ──same-origin──> [Next.js / BFF (Vercel)] ──server-to-server──> [Nest API (Azure VM)] ──> [TMDB]
+   │  cookie `session` HttpOnly        │  X-Internal-Key (secret) +           │  Postgres
+   │  (JS não lê o token)              │  Authorization: Bearer (só protegidas) +
+   └─ nunca toca o Nest direto         │  X-Client-IP (IP real p/ rate-limit)
+```
+
+- **JWT** (`@nestjs/jwt` + `passport-jwt`) com expiração de **24h**; secret de assinatura vive **só no Nest**, nunca compartilhado com o Next; em `.env`, nunca commitada.
+- **Sessão no browser = cookie `session`** (`HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`), first-party no domínio do Next, contendo o JWT. O JS do browser não lê o token; **sem `localStorage`, sem Bearer saindo do browser**.
+- **Chave interna `X-Internal-Key`** (env `INTERNAL_API_KEY`): o Next injeta em **toda** chamada ao Nest; um **guard global** no Nest valida (roda **antes** do throttler). Fecha o back contra acesso direto e torna confiável o `X-Client-IP`. Exceção: `/health` (se existir, para o uptime check) fica fora do guard.
+- **Dois guards no Nest:** (1) secret global em todas as rotas; (2) JWT (Bearer) só nas protegidas — por ora `/auth/me`; na fase de histórico, avaliar/favoritar.
+- **Rehidratação após F5:** `GET /api/auth/me` (Next) → proxy `GET /auth/me` (Nest, guard Bearer) → `{user}`.
+- **Rate-limit:** **no Nest** (VM 24/7 single-instance), com `getTracker` custom lendo **`X-Client-IP`** (confiável porque o secret garante a origem). 5 tentativas / 15 min por IP no login.
+- **Logout:** 100% no BFF (Next apaga o cookie; sem endpoint no Nest; sem blocklist — stretch §5.3).
+- **Sem refresh token no MVP** (stretch §5.3).
+
+**Contrato — browser ↔ Next ↔ Nest (dois hops):**
+
+| Endpoint | Browser → Next (`/api/*`) | Next → Nest |
+|---|---|---|
+| **register** | `POST /api/auth/register {name,email,password}` → `201 {id,name,email}` \| 400 \| 409. **Sem cookie.** | `POST /auth/register` (+secret) → `201 {id,name,email}` |
+| **login** | `POST /api/auth/login {email,password}` → `200 {user}` **+ `Set-Cookie: session=<jwt>; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=86400`** \| 401 \| 429 | `POST /auth/login` (+secret, +`X-Client-IP`) → `200 {access_token,user}` **no corpo, sem cookie** \| 401 \| 429 |
+| **logout** | `POST /api/auth/logout` → `204` **+ `Set-Cookie: session=; …; Max-Age=0`**. Sem chamada ao Nest. | — |
+| **me** | `GET /api/auth/me` (cookie automático) → `200 {user}` \| 401 | `GET /auth/me` (+secret, +`Authorization: Bearer <jwt-do-cookie>`) → `200 {user}` \| 401 |
+| **search** | `GET /api/titles/search?q&page` → `200 {results,page,totalPages,hasMore}` \| 400 \| 502 | `GET /titles/search?q&page` (+secret) → mesmo payload |
+
+### 8.2 Segurança
+
+- Hash de senha com **bcrypt** ou **argon2** (nunca texto plano nem hash simples).
+- Validação de input em todos os endpoints (`class-validator` via Nest DTOs).
+- **XSS-exfil mitigado** pelo `HttpOnly` (o token não é legível pelo JS). `HttpOnly` não imuniza XSS por completo — sanitização + **CSP/Helmet no Next** cobrem o resto.
+- **Back fechado** pela chave interna `X-Internal-Key` → protege a cota TMDB (abuso de busca), criação de conta em massa e varredura.
+- **Helmet** entra, com a ressalva: os headers/CSP que protegem o **browser** vão **no Next**, não só no Nest.
+- **CSRF:** risco aceito no MVP com `SameSite=Lax`; CSRF token é stretch §5.3.
+- **HTTPS obrigatório em produção em ambos os lados** — Vercel cobre o front automaticamente; o back resolve via Caddy/Traefik no `docker-compose` (Let's Encrypt automático com domínio próprio) ou Cloudflare grátis em modo proxy na frente da VM. Sem HTTPS no back, o front na Vercel é bloqueado por mixed content.
+- **Ownership por `userId`:** queries de histórico (avaliar/visto/favoritar) sempre derivam o `userId` do JWT — não confiar em id vindo do cliente. (Sem RBAC/papéis — admin fora do MVP.)
+
+### 8.3 Demais RNF
+
+- **Deploy:** aplicação **deve estar acessível online** (exigência do Prof. Paulo Andrade). Stack:
+  - **Front (Next.js / BFF): Vercel** — integração nativa, deploy automático via GitHub. As envs `API_INTERNAL_URL` e `INTERNAL_API_KEY` ficam **server-side** no Vercel (nunca `NEXT_PUBLIC_*`).
   - **Back (Nest.js): Azure VM 24/7 com Docker compose** — container do app NestJS na porta 3000 mapeada pra 80 da VM.
-  - **Banco (PostgreSQL):** container Postgres no mesmo `docker-compose.yml` da VM, na rede interna do Docker, sem exposição pública.
-  - **IaC:** Bicep (Azure ARM).
-  - **CI/CD:** GitHub Actions, pipeline estrita à `main`.
-  - Variáveis sensíveis (TMDB API key, JWT secret, `DATABASE_URL`) em secrets do GitHub Actions e variáveis de ambiente da VM; nunca commitadas.
-- **Processo de deploy:** PRs que tocam IaC (Bicep), `docker-compose.yml` ou pipeline CI/CD (GitHub Actions) exigem aprovação de pelo menos 2 integrantes antes de merge em `main`. Documentação do deploy passo-a-passo mora no `README.md` do back, atualizada conforme o pipeline estabiliza.
+  - **Banco (PostgreSQL):** container Postgres no mesmo `docker-compose.yml` da VM, rede interna do Docker, sem exposição pública.
+  - **IaC:** Bicep (Azure ARM). **CI/CD:** GitHub Actions, pipeline estrita à `main`.
+  - **Três segredos** do projeto: **TMDB API key**, **JWT secret** e **chave interna (`INTERNAL_API_KEY`)** — em GitHub Secrets / ambiente da VM / Vercel server-side; nunca commitados.
+- **Processo de deploy:** PRs que tocam IaC (Bicep), `docker-compose.yml` ou pipeline CI/CD exigem aprovação de pelo menos 2 integrantes antes de merge em `main`. Doc do deploy passo-a-passo mora no `README.md` do back.
 - **Responsividade:** foco desktop, responsivo básico via breakpoints CSS para tablets/celulares.
 - **Acessibilidade:** contraste mínimo WCAG AA em ambos os temas (dark/light).
 - **i18n:** UI em PT-BR; sem multilíngue.
-- **Logging:** `nestjs-pino`. Setup mínimo: `LoggerModule.forRoot()` no `AppModule` com defaults; sem `pino-pretty` em produção (Docker captura JSON puro do stdout dos containers); em dev `pino-pretty` é opcional para legibilidade. Campos por log: `level`, `time` (automático), `context` (`auth`/`tmdb`/`db`), `msg`, `userId` quando aplicável, `err.stack` quando aplicável. **Nunca logar:** senhas (mesmo erradas), tokens JWT, body de request de login/cadastro — regra dura, **sem `redact` paths configurado** (overkill para o MVP; checar visualmente no PR). **Onde logar (mínimo):** erros 5xx da TMDB; tentativas de login com senha errada e rate limit atingido; erros não-tratados via exception filter global. **Sem Sentry / Datadog / log aggregation pago no MVP** — retenção dos logs depende da configuração do Docker/VM, sem agregador de logs no MVP.
+- **Logging:** `nestjs-pino`. Setup mínimo: `LoggerModule.forRoot()` no `AppModule` com defaults; sem `pino-pretty` em produção; em dev `pino-pretty` opcional. Campos por log: `level`, `time`, `context` (`auth`/`tmdb`/`db`), `msg`, `userId` quando aplicável, `err.stack` quando aplicável. **Nunca logar:** senhas (mesmo erradas), tokens JWT, body de request de login/cadastro — regra dura, checada visualmente no PR. **Onde logar (mínimo):** erros 5xx da TMDB; tentativas de login com senha errada e rate limit atingido; erros não-tratados via exception filter global. **Sem Sentry / Datadog / log aggregation pago no MVP.**
 - **Tratamento de erros na UI:**
-  - **Falha de rede / erro 5xx / timeout TMDB:** front mostra mensagem genérica "Não foi possível carregar agora. Tente novamente." + botão "Tentar de novo" que refaz a chamada. Detalhes técnicos só nos logs.
+  - **Falha de rede / erro 5xx / timeout TMDB:** front mostra "Não foi possível carregar agora. Tente novamente." + botão "Tentar de novo". Detalhes técnicos só nos logs.
   - **404 / título não encontrado:** página "Título não encontrado" com link "Voltar para a home" (ver §12).
   - **Acesso fora do BR:** o app envia `region=BR` para a TMDB independente de onde o usuário está; sem detecção de geolocalização, sem warning, sem bloqueio.
 - **Testes:**
-  - **Back (Jest 30):** sem percentual de cobertura forçado. **Lista de cenários obrigatórios** que precisam existir como teste:
-    - `auth.service`: cadastro com sucesso; cadastro com email duplicado (409 ou erro de validação); login com sucesso (retorna JWT válido); login com senha errada (401); login com email inexistente (401, sem revelar que o email não existe); rate limit dispara após 5 tentativas em 15min (429).
-    - `titles.service` (TMDB integration): search com sucesso (retorna lista com poster/título/ano/badge); cache hit não chama TMDB de novo (mock zera chamadas na 2ª requisição); erro de rede da TMDB retorna 5xx tratado sem crash do back.
-  - **Front:** sem testes funcionais profundos no MVP — apenas **testes simbólicos** (2-3 testes de componente, ex: "Botão de login chama submit ao clicar"; "Card de resultado renderiza badge filme/série") como prática educativa e item visível na rubrica acadêmica. Validação principal via QA manual.
+  - **Back (Jest 30):** sem percentual de cobertura forçado. **Cenários obrigatórios:**
+    - `auth.service`: cadastro com sucesso; cadastro com email duplicado (409 ou erro de validação); login com sucesso (retorna JWT válido **`{access_token,user}` no corpo**); login com senha errada (401); login com email inexistente (401, sem revelar que o email não existe); rate limit dispara após 5 tentativas em 15min (429, com tracker `X-Client-IP`). **+ `/auth/me`** retorna `{user}` com Bearer válido e 401 sem.
+    - `titles.service` (TMDB integration): search com sucesso (lista com poster/título/ano/badge); cache hit não chama TMDB de novo (mock zera chamadas na 2ª requisição); erro de rede da TMDB retorna 5xx tratado sem crash do back.
+  - **Front:** sem testes funcionais profundos no MVP — apenas **testes simbólicos** (2-3 testes de componente) como prática educativa e item de rubrica. Validação principal via QA manual.
   - **CI:** GitHub Actions roda `npm test` no PR do back; falha bloqueia merge. No front, `npm run build` + os testes simbólicos rodam no PR.
 
 ---
 
 ## 9. Stack e fundamentação
 
-### 9.1 Frontend — Next.js
+### 9.1 Frontend — Next.js (+ camada BFF)
 
-App Router, file-based routing, ecossistema React maduro. Integração nativa com Vercel para deploy. Suporte a SSR/SSG quando aplicável.
+App Router, file-based routing, ecossistema React maduro. Integração nativa com Vercel para deploy. A camada **BFF** é implementada via **Route Handlers `/api/*`** (`app/api/.../route.ts`): leem o cookie `session`, injetam `X-Internal-Key` / `Bearer` / `X-Client-IP`, chamam o Nest e (login/logout) setam/apagam o cookie. **Helmet/CSP no Next** protege o browser.
 
 ### 9.2 Backend — Nest.js
 
-Arquitetura modular com controllers, services, guards e injeção de dependência — adequada a um time grande dividido por domínio. Decoradores e DTOs facilitam validação e padronização. Documentação abundante para um time com nível técnico misto.
+Arquitetura modular com controllers, services, guards e injeção de dependência — adequada a um time grande dividido por domínio. Decoradores e DTOs facilitam validação e padronização. **Dois guards** (secret global + JWT nas protegidas). Documentação abundante para um time com nível técnico misto.
 
 ### 9.3 Banco — PostgreSQL + Prisma
 
@@ -267,31 +377,38 @@ Relacional adequado às entidades (User/Rating/Watched/Favorite, com chave compo
 
 ### 9.4 Dados externos — TMDB API
 
-Gratuita, com dados em PT-BR (sinopses, gêneros) e endpoint `watch/providers` cobrindo provedores BR — validado em spike antes do início do projeto.
+Gratuita, com dados em PT-BR (sinopses, gêneros) e endpoint `watch/providers` cobrindo provedores BR — validado em spike antes do início do projeto. **Sempre consumida via Nest** (key nunca no browser).
 
 ### 9.5 Decisões de "por que não"
 
-- **Django:** foi sugerido pelo professor; o time optou por JavaScript no back para unificar a stack com o front e reaproveitar conhecimento.
+- **Django:** sugerido pelo professor; o time optou por JavaScript no back para unificar a stack com o front.
 - **Fastify puro:** considerado inicialmente; trocado por Nest.js para ganhar estrutura modular adequada ao tamanho do time.
-- **Monorepo:** decidido em discussão prévia, mas o time já criou dois repositórios separados; aceitamos a estrutura existente em vez de retrabalhar.
-- **Render + Neon (PaaS free tier):** considerados inicialmente; trocados após contraproposta técnica do back (26/05) por Azure VM 24/7 com Docker compose, eliminando cold start de 15-30s e mitigando configuration drift via imagens reproduzíveis.
+- **Monorepo:** decidido em discussão prévia, mas o time já criou dois repositórios separados; aceitamos a estrutura existente.
+- **SPA cross-origin (browser↔Nest direto):** considerado até 29/05; **descartado** em favor do BFF — eliminou a escolha de CORS cross-site e tirou o token do browser. Ver §15 (30/05).
+- **Render + Neon (PaaS free tier):** trocados (26/05) por Azure VM 24/7 com Docker compose, eliminando cold start e mitigando configuration drift.
 
 ---
 
 ## 10. Arquitetura macro
 
 ```
-[Navegador] → [Vercel — Next.js Frontend]
-                      ↓
-              [Azure VM (Docker compose)]
-              ├─ container: Nest.js API (3000 → VM:80)
-              └─ container: PostgreSQL (5432, rede interna)
-                              ↓
-                          [TMDB API]
+[Navegador]
+    │  (same-origin: páginas + /api/*)
+    ▼
+[Vercel — Next.js + camada BFF]
+    │  server-to-server: X-Internal-Key + Bearer (protegidas) + X-Client-IP
+    ▼
+[Azure VM (Docker compose)]
+ ├─ container: Nest.js API (3000 → VM:80)  ── guard global de secret + guard JWT
+ └─ container: PostgreSQL (5432, rede interna)
+                    │
+                    ▼
+                [TMDB API]
 ```
 
-- Frontend Next.js consome a API do backend (sem chamar TMDB direto).
-- Backend Nest.js intermedia TMDB, faz cache, persiste estado do usuário.
+- O **navegador nunca chama o Nest direto** — só o Next (páginas e `/api/*`).
+- O **Next (BFF)** é a única origem que acessa o Nest; injeta a chave interna em toda chamada.
+- Backend Nest.js intermedia TMDB, faz cache, persiste estado do usuário e valida os dois guards.
 - Postgres armazena User, Rating, Watched, Favorite.
 
 Diagrama detalhado: `docs/arquitetura.png` (a produzir).
@@ -300,11 +417,11 @@ Diagrama detalhado: `docs/arquitetura.png` (a produzir).
 
 ## 11. Modelo de dados macro
 
-Quatro modelos atuais (`prisma/schema.prisma` no repositório back):
+Quatro modelos (`prisma/schema.prisma` no repositório back) — **inalterados nesta versão** (o BFF não cria tabela nova; sem blocklist no MVP):
 
 - **User** — autenticação local (`email` unique, `passwordHash`, `name` validado conforme US-1.1).
-- **Rating** — nota `Float` do usuário para um título (input restrito a **inteiro 1-10**; campo guarda como `Float` para deixar a porta aberta a meia-nota no futuro sem precisar de migration).
-- **Watched** — marca "visto" do usuário para um título; tem campo `origem` (`"manual"` ou `"auto"`) que define o comportamento ao remover a avaliação relacionada (ver US-4.1).
+- **Rating** — nota `Float` do usuário para um título (input restrito a **inteiro 1-10**; campo guarda como `Float` para deixar a porta aberta a meia-nota no futuro sem migration).
+- **Watched** — marca "visto" do usuário; tem campo `origem` (`"manual"` ou `"auto"`) que define o comportamento ao remover a avaliação relacionada (ver US-4.1).
 - **Favorite** — favorito do usuário.
 
 Chave composta nas três últimas: `(userId, tmdbId, tmdbType)`. Sem CRUD próprio de filmes — toda referência ao título é via TMDB ID.
@@ -324,57 +441,85 @@ Capturas vão em `docs/telas/` ao longo do desenvolvimento.
 | Home | Busca, destaques, filtros por gênero | a desenhar |
 | Resultados de busca | Lista de cards (filme/série) | a desenhar |
 | Ficha do título | Sinopse + provedores + ações | a desenhar |
-| Login / Cadastro | Auth local | a desenhar |
-| Perfil do usuário | Totais (3 contadores) + listas simples (poster + título + ano, 30 mais recentes, sem filtros/paginação) — ver US-4.4 | a desenhar |
+| Login / Cadastro | Auth local (via BFF) | a desenhar |
+| Perfil do usuário | Totais (3 contadores) + listas simples (poster + título + ano, 30 mais recentes) — ver US-4.4 | a desenhar |
 | Erro / 404 | Estados de erro | a desenhar |
 
 ---
 
 ## 13. Backlog ágil
 
-Estrutura em sprints curtas (1-2 semanas). Cada item vira issue no GitHub.
+> Estrutura recomprimida para **02/07** (ver §16). **2 sprints de 2 semanas + fechamento**, sobre uma Sprint 0 de setup que corre em paralelo. Cada item vira issue no GitHub. Os planos operacionais detalhados por sprint (`sprint-N-plan.md`) e as issues são derivados deste backlog no passo seguinte.
 
-### Sprint 0 — Setup (semana 1, em andamento)
+### 13.1 Matriz de rastreabilidade (US ↔ épico ↔ sprint ↔ prioridade ↔ dependências)
+
+| US | Épico | Sprint | Prioridade | Depende de | DoD (resumo) |
+|---|---|---|---|---|---|
+| US-1.1 Cadastro | E1 | S1 | **P0** | schema User | conta criada, hash, 409 em dup, sem cookie |
+| US-1.2 Login | E1 | S1 | **P0** | US-1.1, BFF layer, JwtModule | login seta cookie `session` no Next, 401/429, F5 via `/me` |
+| US-1.3 Logout | E1 | S1 | **P0** | US-1.2 | `POST /api/auth/logout` apaga cookie |
+| US-2.1 Busca | E2 | S1 | **P0** | TMDB client, cache | busca multi, cards+badge, "carregar mais", 0-resultados |
+| US-2.2 Ficha | E2 | S1 | **P0** | US-2.1 | ficha completa renderiza |
+| US-3.1 Onde assistir | E3 | S1 | **P0** | US-2.2 | área destacada, flatrate, estado sem-provedor |
+| US-4.1 Avaliação + auto-visto | E4 | S2 | **P0** | auth, ficha | nota 1-10, marca visto-auto, editar/remover c/ regra de origem |
+| US-4.2 Visto manual | E4 | S2 | P1 | auth, ficha | marca visto-manual |
+| US-4.3 Favorito | E4 | S2 | P1 | auth, ficha | favoritar/desfavoritar |
+| US-4.4 Perfil | E4 | S2 | P1 | US-4.1/4.2/4.3 | 3 totais + 3 listas (30 itens) |
+| US-2.3 Gêneros home | E2 | S2 | P1 | home base | chips single-select, discover |
+| US-5.1 Dark/light | E5 | S2 | P1 | layout global | toggle, prefers-color-scheme, persist |
+| US-5.2 Responsivo | E5 | S2 | P1 | telas principais | breakpoints básicos sem quebra |
+
+**Itens transversais / infra (não-US), por sprint:**
+
+| Item | Sprint | Prioridade | Nota |
+|---|---|---|---|
+| Front scaffold Next.js + CI básico | S0 | **P0** | bloqueia todo o front |
+| Infra Azure VM + Docker compose + Bicep + Actions | S0 (paralela) | **P0** | PR #16 em curso |
+| Camada BFF no front (route handlers `/api/*`) — *N3* | S1 | **P0** | maior trabalho novo do front |
+| Guard global de chave interna (`X-Internal-Key`) — *N1* | S1 | **P0** | fecha o back |
+| `GET /auth/me` + JwtStrategy + JwtAuthGuard — *N2* | S1 | **P0** | reaproveita `/auth/profile` do PR #21 |
+| JwtModule + throttler + pino + cache-manager | S1 | **P0** | JwtModule já adiantado no PR #21 |
+| Deploy online (Vercel prod + Azure VM) + **HTTPS no back** | S2 | **P0** | exigência do professor; HTTPS bloqueia uso real |
+| Relatório UVA + DER + telas + README + e2e + apresentação | Fechamento | **P0** | entrega 02/07 |
+
+### 13.2 Sprint 0 — Setup (em curso, paralela; fecha até ~07/06)
 
 - [x] Scaffold Nest + Prisma + Postgres no back.
 - [x] Criar branch `main` no back e definir como default no GitHub.
 - [x] Convidar Eduardo Fernandes ao repo back.
-- [ ] Scaffold Next.js no front.
+- [ ] **Scaffold Next.js no front** (⏳ crítico — bloqueia todas as telas).
 - [ ] CI básico no front (GitHub Actions: lint + build) — Vercel cuida do deploy.
-- [ ] Infraestrutura do back: Azure VM via Bicep + `docker-compose.yml` (API NestJS + Postgres em containers, rede interna, app `:3000→VM:80`, postgres `:5432` interna) + pipeline GitHub Actions estrita à `main` (build da Docker image + push + deploy via SSH na VM ao mergear em `main`). Entregue no PR `feat/infra-cicd`.
+- [ ] Infra do back: Azure VM via Bicep + `docker-compose.yml` + pipeline GitHub Actions estrita à `main` (PR #16).
 
-### Sprint 1 — Auth + busca (semanas 2-3)
+### 13.3 Sprint 1 — Núcleo demonstrável (01–14/jun)
 
-- [ ] **Dia 1 (kickoff S1):** acordar contrato das 3 APIs com o front (path, payload, response, códigos de erro) — front começa a mockar imediatamente, sem esperar implementação do back.
-- [ ] E1 Autenticação completa (US-1.1 a 1.3).
-- [ ] E2 Busca TMDB (US-2.1).
-- [ ] Demo de fim de sprint: criar conta → fazer login → buscar "Oppenheimer" → ver lista de resultados.
+**Escopo P0:** E1 Auth completa **no modelo BFF** (US-1.1/1.2/1.3 + camada BFF N3 + guard interno N1 + `/auth/me` N2) · E2 Busca (US-2.1) · E2 Ficha (US-2.2) · E3 Onde assistir (US-3.1).
 
-### Sprint 2 — Ficha + Onde assistir + histórico (semanas 4-5)
+- [ ] **Dia 1 (kickoff):** acordar o contrato dos dois hops (browser↔Next↔Nest) das 5 rotas (§8.1) — front começa a mockar os `/api/*` imediatamente.
+- [ ] Auth BFF de ponta a ponta (cadastro → login com cookie → `/auth/me` → logout).
+- [ ] Busca + ficha + onde assistir.
+- **Demo de fim de sprint:** criar conta → login → buscar "Oppenheimer" → abrir a ficha → ver onde assistir no Brasil. (Story arc fechado do núcleo.)
 
-- [ ] Ficha básica (US-2.2) — pré-requisito de US-3.1.
-- [ ] **HTTPS no back** — escolher e configurar uma das duas opções (Caddy/Traefik no `docker-compose` **ou** Cloudflare grátis em modo proxy na frente da VM); validar com `curl https://<dominio>/health` antes de mergear em `main`. Bloqueia uso real do front publicado na Vercel (mixed content).
-- [ ] E3 Onde assistir (US-3.1).
-- [ ] E4 Avaliação + visto + favorito (US-4.1 a 4.4).
+### 13.4 Sprint 2 — Histórico, perfil, UI e deploy (15–28/jun)
 
-### Sprint 3 — Polimento + UI (semanas 6-7)
+**Escopo:** E4 Avaliação + auto-visto (US-4.1, **P0**) · visto manual / favorito / perfil (US-4.2/4.3/4.4, P1) · E2 Gêneros na home (US-2.3, P1) · E5 Dark/light + responsivo (US-5.1/5.2, P1) · **Deploy online + HTTPS no back (P0)**.
 
-- [ ] E5 Dark/light mode (US-5.1, 5.2).
-- [ ] Home com destaques e filtros por gênero (US-2.3).
-- [ ] Perfil do usuário (US-4.4).
+- [ ] Histórico do usuário (avaliar/visto/favoritar) com ownership por `userId`.
+- [ ] Perfil + gêneros na home + tema.
+- [ ] **HTTPS no back** (Caddy/Traefik no compose **ou** Cloudflare proxy); validar com `curl https://<dominio>/health` antes de mergear.
+- [ ] **Deploy do front na Vercel (production)** + validação e2e no ambiente publicado.
+- **Demo de fim de sprint:** MVP completo **publicado online** (criar conta → login → buscar → ficha → onde assistir → avaliar → ver no perfil).
 
-### Sprint 4 — Fechamento e deploy (semana 8)
+### 13.5 Fechamento (29/jun–02/jul)
 
-- [ ] **Deploy do front na Vercel** (production, não Preview Deployment).
-- [ ] **Validação end-to-end do deploy publicado:** criar conta → login → buscar "Oppenheimer" → ver provedor BR no ambiente final (Vercel + Azure VM).
-- [ ] **Monitorar custos do Azure** durante a semana 8 — confirmar que o consumo cabe no plano gratuito escolhido.
 - [ ] **Relatório acadêmico em PDF no template institucional da UVA** — capa, resumo, introdução, fundamentação, desenvolvimento, telas, backlog, versionamento, resultados, conclusão, referências.
 - [ ] README finalizado nos 2 repos.
 - [ ] DER e diagrama de arquitetura exportados em `docs/` nos 2 repos.
 - [ ] Documentação das telas (`docs/telas/`) com print + descrição curta.
+- [ ] **Validação end-to-end final** do deploy publicado.
+- [ ] **Monitorar custos do Azure** — confirmar que cabe no plano escolhido.
 - [ ] Empacotar código em `.zip` para envio via Teams + e-mail.
-- [ ] Testes e ajustes finais.
-- [ ] Apresentação.
+- [ ] Ensaio + **apresentação**. **ENTREGA: 02/07/2026.**
 
 ---
 
@@ -382,60 +527,69 @@ Estrutura em sprints curtas (1-2 semanas). Cada item vira issue no GitHub.
 
 | Risco | Probabilidade | Impacto | Mitigação |
 |---|---|---|---|
-| Time grande (13) com baixa disponibilidade individual (média 2-5h/semana) | alta | alto | Tasks pequenas e bem definidas; PO dedicado a desbloquear. |
-| Mix de níveis técnicos e disponibilidade variável (algumas pessoas com horas limitadas por semana) | alta | médio | Documentar bem o setup; pair programming nas issues complexas. |
+| **Cronograma recomprimido (8 → ~4,5 semanas)** até 02/07 | alta | alto | **Tiering P0/P1** (§5.1) com linha de corte explícita; núcleo demonstrável fechado já na Sprint 1; deploy antecipado para a Sprint 2 (não esperar o fechamento). |
+| Time grande (13) com baixa disponibilidade individual (média 2-5h/semana) | alta | alto | Tasks pequenas e bem definidas; PO dedicado a desbloquear; PRD estruturado para reduzir reinterpretação e acelerar a implementação. |
+| **Front carrega o maior peso novo da auth** (camada BFF — N3) | média | alto | BFF via Route Handlers `/api/*` (menor carga conceitual); contrato dos dois hops fechado no Dia 1; buy-in do Davi confirmado. |
+| **Integração dos dois hops** (cookie no Next + Bearer/secret/X-Client-IP no Nest) falha na junção | média | médio | Mock dos `/api/*` no front desde o Dia 1; teste de `/auth/me` (rehidratação) e de rate-limit com `X-Client-IP` nos cenários obrigatórios (§8.3). |
+| **PR #21 (auth) entrou off-spec** (refresh token, `/auth/profile`, login stub, senha mín. 6) | alta | médio | Realinhar na fase de issues: aproveitar JwtModule; `/auth/profile`→`/auth/me`; **remover `/auth/refresh`** (stretch); completar login (Prisma+bcrypt+`user`); senha mín. **8**. Ver §15. |
 | TMDB pode não cobrir provedores para títulos de nicho | média | médio | Mostrar "não disponível em streaming BR" como estado válido. |
 | Time não acostumado com fluxo de PR/issues no GitHub | média | médio | Documentar o fluxo no README do back; revisão coletiva nos primeiros PRs. |
-| **Front bloqueado esperando endpoints do back** (auth, busca, ficha) — atrasa S1 inteira | alta | alto | Acordar **contrato das APIs no dia 1 de cada sprint** (path, request, response, códigos de erro) por escrito; front mocka a resposta enquanto back implementa; integração no fim da sprint. |
+| Front bloqueado esperando endpoints do back | alta | alto | Acordar **contrato no Dia 1 de cada sprint**; front mocka os `/api/*` enquanto back implementa; integração no fim da sprint. |
 
 ---
 
 ## 15. Decisões registradas
 
-Log de decisões fechadas até a publicação desta versão.
+> Log **append-only** de decisões fechadas. Entradas novas no topo de cada bloco datado; entradas antigas **não** são reescritas (mesmo quando superadas — a superseção é anotada).
 
-- **22/05/2026** Stack definida: Next.js + Nest.js + Prisma + PostgreSQL + TMDB.
-- **22/05/2026** Trocar Fastify por Nest.js para ganhar estrutura modular adequada ao tamanho do time.
-- **22/05/2026** Prisma como ORM, com migrações versionadas.
-- **23/05/2026** TMDB validada para watch providers BR (filmes e séries) via spike.
-- **24/05/2026** Aceitar 2 repos (não monorepo) — time já criou separados.
-- **24/05/2026** MVP confirmado: filmes **e** séries.
-- **24/05/2026** Sem comentários no MVP — complexidade fora do escopo.
-- **24/05/2026** **Deploy online obrigatório** — exigência do Prof. Paulo Andrade.
-- **24/05/2026** **Admin fora do MVP** — sem RBAC, sem painel; em caso de necessidade de moderação, exclusão manual via banco.
-- **24/05/2026** **Autenticação:** JWT com `@nestjs/jwt` + `passport-jwt`; senha em bcrypt/argon2; **token de 24h**; secret em `.env`; **sem refresh token no MVP**. Razão: balança UX razoável (1 login por dia útil) com simplicidade de Sprint 1; risco de roubo de token aceitável para app de filmes sem dados sensíveis.
-- **24/05/2026** **Fluxos de email fora do MVP:** confirmação de email no cadastro e "esqueci minha senha" ficam em §5.3 (pacote acoplado, depende de integrar serviço de envio). Edição de perfil e deleção de conta pelo próprio usuário também fora — alteração via banco se necessário.
-- **24/05/2026** **Detalhes de auth:** logout só client-side (front descarta o token; sem blocklist no back); rate limit no login com `@nestjs/throttler` (5 tentativas / 15 min por IP); validação de email via regex simples no DTO (sem MX lookup); senha mínima 8 caracteres **sem** complexidade obrigatória (alinha NIST SP 800-63B).
-- **24/05/2026** **`tmdbType` vira enum Prisma** (`MOVIE | TV`); tradução para `"movie"`/`"tv"` da TMDB feita no service.
-- **24/05/2026** **Validação do nome do User:** trim + 2-60 caracteres + letras (acentos OK) / números / espaço / hífen / apóstrofe; sem unicidade (email é o identificador). Implementado via DTO.
-- **24/05/2026** **Busca mistura filme e série** (`/search/multi` filtrando pessoa) com badge no card distinguindo o tipo; **paginação via botão "Carregar mais"** (20 por página TMDB, acumula). Alinha com padrão do mercado (JustWatch/Letterboxd).
-- **24/05/2026** **Filtros por gênero só na home, single-select, gêneros vindos da TMDB** (`/genre/movie/list` + `/genre/tv/list` em PT-BR, cache permanente). Chips horizontais clicáveis com "Todos" como default. Filtros não atuam em resultados de busca por texto no MVP.
-- **24/05/2026** **Tema:** default segue o sistema operacional via CSS `prefers-color-scheme`; fallback light se o sistema não opinar; toggle sol/lua no header; preferência persistida em localStorage uma vez tocada.
-- **24/05/2026** **Cache TMDB em memória do Nest** (`@nestjs/cache-manager`, sem Redis no MVP) com TTLs diferenciados: gêneros permanentes até restart; ficha 24h; provedores 12h; busca 1h. **SLA reformulado em três faixas:** 200ms cache-hit / 2s cache-miss / até 30s tolerado em cold start do free tier.
-- **24/05/2026** **Estados de borda da UI definidos:** "0 resultados" na busca (mensagem discreta); "sem provedor BR" na ficha (mensagem dentro da área de "Onde assistir", resto da ficha permanece); falha de rede / 5xx / timeout TMDB (mensagem genérica + botão "Tentar de novo"); 404 do título (página dedicada). **Sem detecção de geolocalização** — `region=BR` hardcoded mesmo para usuários fora do BR.
-- **24/05/2026** **Plataformas de deploy fechadas:** **Vercel** (front Next.js), **Render** (back Nest, free tier com cold start aceito), **Neon** (banco Postgres, free tier sem pause). Combinação mais barata operacionalmente, sem fricção de Docker, sem expiração de free tier do banco.
-- **24/05/2026** Biblioteca de UI do front delegada ao time de front — decisão técnica deles.
-- **24/05/2026** **Nota agregada do app** (média das avaliações dos usuários do Guia de Streaming) fica como **stretch §5.3**, fora do MVP. Posicionamento de "histórico pessoal, sem componente social"; base inicial pequena torna a média estatisticamente fraca.
-- **24/05/2026** **Granularidade da Avaliação:** input do usuário é **inteiro 1-10**; schema mantém `score: Float` (sem migration) para preservar a opção futura de meia-nota.
-- **24/05/2026** **Edição e remoção de avaliação + `Watched.origem`:** trocar a nota atualiza a avaliação existente (sem confirmação, sem duplicar). Remover é permitido; o "visto" some junto se foi marcado pela avaliação (`origem = "auto"`) e permanece se foi marcado manualmente antes (`origem = "manual"`). Watched ganha campo `origem` para suportar essa regra.
-- **24/05/2026** **Perfil traz totais + listas simples** (US-4.4): poster + título + ano, 30 mais recentes por lista, sem paginação/filtros/ordenação selecionável no MVP. Filtros/paginação ficam em §5.3.
-- **24/05/2026** **Logger:** `nestjs-pino` no back. Setup mínimo, sem `pino-pretty` em prod, sem `redact` paths. JSON estruturado capturado pelo stdout do Render. Regra dura: nunca logar senhas, tokens, body de auth. Sem log aggregation pago no MVP.
-- **24/05/2026** **Cobertura de testes:** sem percentual forçado. **Back** tem lista de cenários obrigatórios (9 cenários entre `auth.service` e `titles.service` — ver §8) auditáveis por linha de teste, não por número. **Front** tem testes simbólicos (2-3 testes de componente como prática educativa e item de rubrica), sem disciplina de TDD; resto da validação é QA manual. CI bloqueia merge no back se testes falharem.
-- **24/05/2026** **Sprint 1 reescopo:** mover US-2.2 (Ficha básica) para Sprint 2, junto com US-3.1 Onde assistir (que depende dela). Sprint 1 = Auth completa (US-1.1/1.2/1.3) + Busca (US-2.1). Demo S1 fica com story arc fechado ("criar conta → buscar → ver lista"). Mitigação concreta para dependência front↔back adicionada como linha nova em §14 (contrato de API acordado no dia 1 + mock no front).
-- **24/05/2026** **Favorito vs Quero ver (Watchlist):** Favorito é **afetivo sem semântica temporal** — pode ser marcado antes ou depois de assistir; funciona como *like* genérico. Watchlist é **fora do MVP** e quando entrar via §5.3 será uma lista **separada e adicional** chamada canonicamente **"Quero ver"**, com o mesmo título podendo coexistir em Favoritos e em Quero ver, e **sem migration** dos favoritos existentes.
-- **26/05/2026** **Plataformas de deploy reformuladas** (supersede 24/05/2026) após contraproposta técnica do back: **Vercel** (front Next.js, inalterado) + **Azure VM 24/7 com Docker compose** (back NestJS em container + Postgres em container na mesma VM, rede interna Docker, app `:3000→VM:80`, postgres `:5432` interna) + **Bicep** (IaC) + **GitHub Actions** (CI/CD com pipeline estrita à `main`). Razões: Docker resolve configuration drift entre dev e prod via imagem reproduzível; VM 24/7 elimina cold start (era 15-30s no Render free); CI/CD com Actions é padrão atual de mercado; Postgres no mesmo compose evita Neon free tier.
+### 30/05/2026
+
+- **Auth migra para arquitetura BFF** (supersede a parte de auth de 24/05 e o cenário SPA cookie-no-Nest, descartado). Browser fala só com o Next; Next↔Nest server-to-server. JWT em **cookie `session` HttpOnly first-party no Next** + **Bearer interno** + **chave interna `X-Internal-Key`** (Caminho A, guard global). Dissolve a escolha de CORS cross-site. **Rate-limit no Nest** via `X-Client-IP` confiável pelo secret. **Logout no BFF** (sem endpoint no Nest, sem blocklist — stretch). **RBAC fora** (só ownership por `userId`); **telemetria stretch**; **Helmet** com CSP no Next. Motivo: upgrade de segurança (XSS-exfil mitigado) + conserto da inconsistência §10 (já era BFF) × §6/§8 (estilo SPA) + alinhamento ao que o front faria. Origem: review do Eduardo na issue #8 + Proposta Técnica. Detalhe em §8.1.
+- **Cronograma recomprimido para a entrega de 02/07** (supersede o roadmap de 8 semanas da v1.1). **2 sprints de 2 semanas** (Sprint 1 núcleo demonstrável 01–14/jun; Sprint 2 histórico+UI+deploy 15–28/jun) **+ fechamento** (29/jun–02/jul), sobre a Sprint 0 de setup em paralelo. **Ficha (US-2.2) e Onde assistir (US-3.1) sobem para a Sprint 1** (eram S2 na v1.1) — o bloco de 2 semanas comporta e fecha um story arc demonstrável. Motivo: prazo real de ~4,5 semanas.
+- **Tiering de prioridade P0/P1 dentro do MVP** (§5.1). P0 = núcleo inegociável para demo+nota (auth BFF, busca, ficha, onde assistir, avaliação+auto-visto, deploy, docs); P1 = comprometido mas primeira linha de corte (visto manual, favorito, perfil, gêneros na home, dark/light, responsivo). Dá linha de corte explícita sob pressão de prazo.
+- **Realinhamento do PR #21 (auth) — entrou off-spec.** O PR #21 (`develop`, sem risco de deploy) trouxe JWT cedo. **Aproveitar:** JwtModule (BACK-01) e o `/auth/profile` (vira `/auth/me`, N2). **Corrigir na fase de issues:** remover `POST /auth/refresh` (refresh token é stretch §5.3); completar o login (validar contra Prisma + bcrypt, devolver `{access_token,user}` no corpo); subir senha mínima de 6 para **8** (US-1.1). Alinha com o extrator Bearer e o "Nest sem cookie" que o BFF já exige.
+
+### 26/05/2026
+
+- **Plataformas de deploy reformuladas** (supersede 24/05) após contraproposta técnica do back: **Vercel** (front Next.js) + **Azure VM 24/7 com Docker compose** (back NestJS + Postgres na mesma VM, rede interna, app `:3000→VM:80`, postgres `:5432` interna) + **Bicep** (IaC) + **GitHub Actions** (CI/CD estrita à `main`). Razões: Docker resolve configuration drift; VM 24/7 elimina cold start (era 15-30s no Render free); Postgres no mesmo compose evita Neon free tier.
+
+### 24/05/2026
+
+- Stack definida (22/05): Next.js + Nest.js + Prisma + PostgreSQL + TMDB; Fastify trocado por Nest.js; Prisma como ORM; TMDB validada para watch providers BR via spike (23/05).
+- Aceitar 2 repos (não monorepo) — time já criou separados.
+- MVP confirmado: filmes **e** séries. Sem comentários no MVP.
+- **Deploy online obrigatório** — exigência do Prof. Paulo Andrade.
+- **Admin fora do MVP** — sem RBAC, sem painel; moderação via banco se necessário.
+- **Autenticação:** JWT com `@nestjs/jwt` + `passport-jwt`; senha em bcrypt/argon2; **token de 24h**; secret em `.env`; **sem refresh token no MVP**. *(Detalhe de entrega do token superado em 30/05 pelo BFF.)*
+- **Fluxos de email fora do MVP:** confirmação de email e "esqueci minha senha" ficam em §5.3. Edição de perfil e deleção de conta pelo próprio usuário também fora.
+- **Detalhes de auth:** logout só client-side; rate limit no login 5/15min por IP; validação de email via regex simples (sem MX lookup); senha mínima 8 caracteres sem complexidade obrigatória (NIST SP 800-63B). *(Logout/rate-limit reconfigurados pelo BFF em 30/05; senha mín. 8 mantida.)*
+- **`tmdbType` vira enum Prisma** (`MOVIE | TV`); tradução para `"movie"`/`"tv"` no service.
+- **Validação do nome do User:** trim + 2-60 caracteres + letras (acentos OK) / números / espaço / hífen / apóstrofe; sem unicidade.
+- **Busca mistura filme e série** (`/search/multi` filtrando pessoa) com badge no card; **paginação via botão "Carregar mais"** (20 por página TMDB, acumula).
+- **Filtros por gênero só na home, single-select, gêneros vindos da TMDB** (`/genre/movie/list` + `/genre/tv/list` em PT-BR, cache permanente). Chips com "Todos" como default. Não atuam em busca por texto no MVP.
+- **Tema:** default segue o sistema via CSS `prefers-color-scheme`; fallback light; toggle sol/lua no header; preferência persistida em localStorage.
+- **Cache TMDB em memória do Nest** (`@nestjs/cache-manager`, sem Redis) com TTLs diferenciados: gêneros permanentes; ficha 24h; provedores 12h; busca 1h. SLA: 200ms cache-hit / 2s cache-miss.
+- **Estados de borda da UI definidos:** "0 resultados" na busca; "sem provedor BR" na ficha; falha de rede / 5xx / timeout TMDB (mensagem genérica + "Tentar de novo"); 404 do título (página dedicada). Sem geolocalização — `region=BR` hardcoded.
+- **Biblioteca de UI do front delegada ao time de front** — decisão técnica deles.
+- **Nota agregada do app** fica como stretch §5.3.
+- **Granularidade da Avaliação:** input inteiro 1-10; schema mantém `score: Float` (sem migration) para meia-nota futura.
+- **Edição e remoção de avaliação + `Watched.origem`:** trocar a nota atualiza sem duplicar; remover derruba o visto se `origem = "auto"` e mantém se `origem = "manual"`.
+- **Perfil traz totais + listas simples** (US-4.4): poster + título + ano, 30 mais recentes, sem paginação/filtros no MVP.
+- **Logger:** `nestjs-pino`, setup mínimo, sem `redact` paths. Regra dura: nunca logar senhas, tokens, body de auth. Sem log aggregation pago no MVP.
+- **Cobertura de testes:** sem percentual forçado. Back tem cenários obrigatórios auditáveis por linha de teste; front tem testes simbólicos; resto via QA manual. CI bloqueia merge no back se testes falharem.
+- **Sprint 1 (v1.1) reescopada:** Auth + Busca; Ficha/Onde-assistir em S2. *(Superado em 30/05: Ficha e Onde-assistir voltam para a Sprint 1 no cronograma recomprimido.)*
+- **Favorito vs Quero ver (Watchlist):** Favorito é afetivo sem semântica temporal (like genérico); Watchlist é fora do MVP (§5.3), lista separada quando entrar, sem migration dos favoritos.
 
 ---
 
-## 16. Roadmap de 8 semanas
+## 16. Roadmap até 02/07
 
-| Semana | Sprint | Foco | Marco |
+| Período | Bloco | Foco | Marco |
 |---|---|---|---|
-| 1 | S0 | Setup completo back + front | Ambos repos rodando local |
-| 2-3 | S1 | Auth + busca | Demo "criar conta → buscar Oppenheimer → ver lista" |
-| 4-5 | S2 | Ficha + onde assistir + histórico | Demo MVP completo |
-| 6-7 | S3 | UI polida + dark mode + perfil | UI final, testes manuais |
-| 8 | S4 | Documentação + apresentação | Entrega final |
+| até ~07/06 | S0 (paralela) | Front scaffold + infra Azure (PR #16) + CI front | Ambos repos rodando local + pipeline de pé |
+| 01–14/jun | **Sprint 1** | Auth **BFF** + busca + ficha + onde assistir | Demo "criar conta → login → buscar → ficha → onde assistir" |
+| 15–28/jun | **Sprint 2** | Histórico + perfil + gêneros + dark/UI + **deploy online** | Demo MVP completo **publicado** (Vercel + Azure VM) |
+| 29/jun–02/jul | Fechamento | Relatório UVA + telas + README + e2e + ensaio | **Entrega final 02/07** |
 
 ---
 
