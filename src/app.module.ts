@@ -20,6 +20,15 @@ import { validate } from './env.validation';
   imports: [
     LoggerModule.forRoot({
       pinoHttp: {
+        redact: [
+          'req.headers.authorization',
+          'req.headers.cookie',
+          'req.headers["x-internal-key"]',
+          'req.body',
+          'body.password',
+          'body.access_token',
+          'body.token',
+        ],
         transport:
           process.env.NODE_ENV === 'development'
             ? { target: 'pino-pretty' }
