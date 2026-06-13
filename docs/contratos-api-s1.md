@@ -19,13 +19,27 @@
   "password": "string"
 }
 ```
+- Response 201:
+```json
+{
+  "id": "number",
+  "name": "string",
+  "email": "string",
+  "createdAt": "string (ISO 8601)"
+}
+```
 
 **Hop 2 — Next → Nest**
 - Headers: `X-Internal-Key: <INTERNAL_API_KEY>`, `Content-Type: application/json`
 - Body: mesmo do Hop 1
 - Response 201:
 ```json
-{ "accessToken": "string" }
+{
+  "id": "number",
+  "name": "string",
+  "email": "string",
+  "createdAt": "string (ISO 8601)"
+}
 ```
 - Erros: `400` campos inválidos, `409` e-mail já cadastrado
 
@@ -42,13 +56,33 @@
   "password": "string"
 }
 ```
+- Response 200:
+```json
+{
+  "user": {
+    "id": "number",
+    "name": "string",
+    "email": "string",
+    "createdAt": "string (ISO 8601)"
+  }
+}
+```
+- ⚠️ Sessão em cookie HttpOnly setado pelo Next — o `access_token` do Hop 2 não vai no corpo nem fica acessível ao browser.
 
 **Hop 2 — Next → Nest**
 - Headers: `X-Internal-Key: <INTERNAL_API_KEY>`, `Content-Type: application/json`
 - Body: mesmo do Hop 1
 - Response 200:
 ```json
-{ "accessToken": "string" }
+{
+  "access_token": "string",
+  "user": {
+    "id": "number",
+    "name": "string",
+    "email": "string",
+    "createdAt": "string (ISO 8601)"
+  }
+}
 ```
 - Erros: `400` campos inválidos, `401` credenciais incorretas, `429` rate limit
 
@@ -70,16 +104,29 @@
 
 **Hop 1 — Browser → Next**
 - Headers: `Authorization: Bearer <token>`
+- Response 200:
+```json
+{
+  "user": {
+    "id": "number",
+    "name": "string",
+    "email": "string",
+    "createdAt": "string (ISO 8601)"
+  }
+}
+```
 
 **Hop 2 — Next → Nest**
 - Headers: `X-Internal-Key: <INTERNAL_API_KEY>`, `Authorization: Bearer <token>`
 - Response 200:
 ```json
 {
-  "id": "number",
-  "name": "string",
-  "email": "string",
-  "createdAt": "string (ISO 8601)"
+  "user": {
+    "id": "number",
+    "name": "string",
+    "email": "string",
+    "createdAt": "string (ISO 8601)"
+  }
 }
 ```
 - Erros: `401` token inválido/expirado
@@ -159,3 +206,4 @@
 | Data | Motivo | Assinatura |
 |---|---|---|
 | 2026-06-13 | Documento inicial criado | IgorRocha1603 |
+| 2026-06-13 | Auth (register/login/me) corrigido conforme a implementação do back | caioplaninschek |
