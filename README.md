@@ -3,24 +3,26 @@
 Backend do projeto Guia de Streaming — NestJS + Prisma + PostgreSQL.
 
 ## Setup local
+## Setup local
 
 1. Clone o repositório e instale as dependências:
-
 ```bash
-npm install
+   npm install
 ```
 
-2. Configure o arquivo `.env` na raiz com sua string de conexão:
-DATABASE_URL="postgresql://postgres:SUA_SENHA@localhost:5432/guia_streaming?schema=public"
-
-3. Rode as migrations:
-
+2. Copie o arquivo de exemplo e preencha com seus valores:
 ```bash
-npx prisma migrate dev
+   cp .env.example .env
 ```
 
-4. Inicie o servidor:
+3. Edite o `.env` com suas credenciais locais (banco, JWT, TMDB, etc).
 
+4. Rode as migrations:
 ```bash
-npm run start:dev
+   npx prisma migrate dev
+```
+
+5. Inicie o servidor:
+```bash
+   npm run start:dev
 ```
