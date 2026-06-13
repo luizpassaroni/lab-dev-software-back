@@ -73,12 +73,15 @@ jobs:
         uses: appleboy/ssh-action@v1.0.3
         env:
           PROD_POSTGRES_PASSWORD: ${{ secrets.PROD_POSTGRES_PASSWORD }}
+          PROD_JWT_SECRET: ${{ secrets.PROD_JWT_SECRET }}
+          PROD_INTERNAL_API_KEY: ${{ secrets.PROD_INTERNAL_API_KEY }}
+          PROD_TMDB_API_TOKEN: ${{ secrets.PROD_TMDB_API_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           host: ${{ needs.infra-and-build.outputs.PUBLIC_IP }}
           username: deployer
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: PROD_POSTGRES_PASSWORD,GITHUB_TOKEN
+          envs: PROD_POSTGRES_PASSWORD,PROD_JWT_SECRET,PROD_INTERNAL_API_KEY,PROD_TMDB_API_TOKEN,GITHUB_TOKEN
           script: |
             if ! command -v docker &> /dev/null; then
               sudo apt update -y
@@ -108,6 +111,9 @@ jobs:
             POSTGRES_PASSWORD=$PROD_POSTGRES_PASSWORD
             POSTGRES_DB=uva_nestjs_db
             PORT=3000
+            JWT_SECRET=$PROD_JWT_SECRET
+            INTERNAL_API_KEY=$PROD_INTERNAL_API_KEY
+            TMDB_API_TOKEN=$PROD_TMDB_API_TOKEN
             EOF
             
             cat << 'EOF' > Caddyfile
