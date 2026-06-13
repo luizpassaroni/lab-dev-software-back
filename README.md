@@ -57,6 +57,10 @@ $ npm run test:e2e
 $ npm run test:cov
 ```
 
+## Rate Limiting
+
+O endpoint `POST /auth/login` está protegido com rate limit de **5 tentativas a cada 15 minutos por IP** (via header `X-Client-IP` repassado pelo Next.js/BFF). Em caso de excesso, a API retorna status 429 com a mensagem: `{ "message": "Muitas tentativas, aguarde alguns minutos." }`
+
 ## Deployment
 
 When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
