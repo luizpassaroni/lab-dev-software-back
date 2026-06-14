@@ -64,6 +64,10 @@ DATABASE_URL=<your-database-url>
 
 **Important:** Never use the default `JWT_SECRET=trocar-em-producao` in production. The application will fail to start if JWT_SECRET is missing or using the default unsafe value.
 
+## API Documentation
+
+Set `SWAGGER_ENABLED=true` outside production and start the application to access the interactive OpenAPI documentation at [`/api/docs`](http://localhost:3000/api/docs). The Swagger UI supports the JWT Bearer token and the `X-Internal-Key` header used by the BFF.
+
 ## Project setup
 
 ```bash
