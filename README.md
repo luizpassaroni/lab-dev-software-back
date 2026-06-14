@@ -26,22 +26,29 @@
 [Nest](https://github.com/nestjs/nest) framework TypeScript starter repository with Prisma ORM and JWT authentication.
 
 **Features:**
+
 - 🔐 JWT-based authentication (24h token expiration)
 - 🗄️ Prisma ORM for database management
 - ✅ Input validation with class-validator
 - 🛡️ TypeScript for type safety
 - 📚 Ready for production with secure configurations
 
+## Logout
+
+Logout é tratado no BFF: o Next apaga o cookie `session`. O Nest não tem endpoint de logout nem blocklist. O token segue válido até expirar em 24h. A blocklist de tokens revogados é stretch, consulte o [PRD §5.3](docs/PRD.md#53-pode-entrar-se-sobrar-tempo-stretch) e as [decisões registradas no PRD §15](docs/PRD.md#15-decisões-registradas).
+
 ## Environment Setup
 
 Before running the project, you need to configure environment variables:
 
 1. Copy `.env.example` to `.env`:
+
 ```bash
 $ cp .env.example .env
 ```
 
 2. Generate a secure JWT secret (in production):
+
 ```bash
 $ openssl rand -base64 32
 # Or using Node.js:
@@ -49,12 +56,17 @@ $ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
 ```
 
 3. Update `.env` with your values:
+
 ```env
 JWT_SECRET=<your-generated-secret>
 DATABASE_URL=<your-database-url>
 ```
 
 **Important:** Never use the default `JWT_SECRET=trocar-em-producao` in production. The application will fail to start if JWT_SECRET is missing or using the default unsafe value.
+
+## API Documentation
+
+Set `SWAGGER_ENABLED=true` outside production and start the application to access the interactive OpenAPI documentation at [`/api/docs`](http://localhost:3000/api/docs). The Swagger UI supports the JWT Bearer token and the `X-Internal-Key` header used by the BFF.
 
 ## Project setup
 

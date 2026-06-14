@@ -17,7 +17,25 @@ import { JwtAuthGuard } from './guards/jwt.guard';
 import { UserService } from '../user/user.service';
 import { CreateUserDto } from '../user/dto/create-user.dto';
 import { ResponseCreateUserDto } from '../user/dto/response-create-user.dto';
+import {
+  ApiBearerAuth,
+  ApiCreatedResponse,
+  ApiOkResponse,
+  ApiOperation,
+  ApiSecurity,
+  ApiTags,
+  ApiUnauthorizedResponse,
+} from '@nestjs/swagger';
+import { LoginResponseDto, ProfileResponseDto } from './dto/auth-response.dto';
 
+type AuthenticatedRequest = {
+  user: {
+    userId: number;
+  };
+};
+
+@ApiTags('Auth')
+@ApiSecurity('internal-key')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -31,7 +49,10 @@ export class AuthController {
   @Post('login')
   @HttpCode(HttpStatus.OK)
   @Throttle({ default: { ttl: 900_000, limit: 5 } })
-  async login(@Body() loginDto: LoginDto) {
+  @ApiOperation({ summary: 'Autentica um usuário para o BFF' })
+  @ApiOkResponse({ type: LoginResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Credenciais inválidas' })
+  async login(@Body() loginDto: LoginDto): Promise<LoginResponseDto> {
     const { email, password } = loginDto;
     const user = await this.userService.findByEmail(email);
     const isPasswordValid = user
@@ -57,6 +78,8 @@ export class AuthController {
   }
 
   @Post('register')
+  @ApiOperation({ summary: 'Cria uma conta de usuário' })
+  @ApiCreatedResponse({ type: ResponseCreateUserDto })
   async register(
     @Body() createUserDto: CreateUserDto,
   ): Promise<ResponseCreateUserDto> {
@@ -75,7 +98,13 @@ export class AuthController {
    */
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@Req() request: any) {
+  @ApiOperation({ summary: 'Retorna o usuário da sessão' })
+  @ApiBearerAuth('bearer')
+  @ApiOkResponse({ type: ProfileResponseDto })
+  @ApiUnauthorizedResponse({ description: 'JWT ausente ou inválido' })
+  async getProfile(
+    @Req() request: AuthenticatedRequest,
+  ): Promise<ProfileResponseDto> {
     const user = await this.userService.findById(request.user.userId);
 
     if (!user) {

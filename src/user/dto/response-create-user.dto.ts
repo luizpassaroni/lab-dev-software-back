@@ -1,4 +1,5 @@
 import { Expose } from 'class-transformer';
+import { ApiProperty } from '@nestjs/swagger';
 
 export class ResponseCreateUserDto {
   constructor(id: number, name: string, email: string, createdAt: Date) {
@@ -7,15 +8,20 @@ export class ResponseCreateUserDto {
     this.email = email;
     this.createdAt = createdAt;
   }
-  @Expose()
-  id: number;
 
+  @ApiProperty({ example: 1 })
   @Expose()
-  name: string;
+  id!: number;
 
+  @ApiProperty({ example: 'Test User' })
   @Expose()
-  email: string;
+  name!: string;
 
+  @ApiProperty({ example: 'user@example.com' })
   @Expose()
-  createdAt: Date;
+  email!: string;
+
+  @ApiProperty({ example: '2026-01-01T00:00:00.000Z', format: 'date-time' })
+  @Expose()
+  createdAt!: Date;
 }
