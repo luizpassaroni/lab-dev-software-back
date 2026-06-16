@@ -45,7 +45,7 @@ A Sprint 1 **assume** a Sprint 0 (`sprint-0-plan.md`): scaffold Next.js mergeado
 
 ## A arquitetura BFF — leia antes do Dia 1
 
-O browser fala **só** com o Next (same-origin). O Next fala com o Nest **server-to-server** e é a **única** origem que o acessa; o Nest fica fechado pela **chave interna**. Toda chamada browser-facing da S1 — **auth + busca + ficha** — passa por route handlers `/api/*` do Next.
+O browser fala **só** com o Next (same-origin). O Next fala com o Nest **server-to-server** e é a **única** origem que o acessa; o Nest fica fechado pela **chave interna**. Toda chamada browser-facing da S1 — **auth + busca + ficha** — passa por **Server Actions** do Next (`"use server"`).
 
 ```
 [Browser] ──same-origin──> [Next.js / BFF (Vercel)] ──server-to-server──> [Nest API (Azure VM)] ──> [TMDB]
@@ -64,6 +64,8 @@ O browser fala **só** com o Next (same-origin). O Next fala com o Nest **server
 ## Contrato Dia-1 — 6 rotas browser-facing / 5 endpoints no Nest
 
 Fechar **por escrito** no kickoff (vira `docs/contratos-api-s1.md` no repo back — `ISSUE-BACK-13`). Cada chamada tem **dois hops**: o front consome o lado `Browser → Next`; o Next acrescenta `X-Internal-Key` no lado `Next → Nest`.
+
+> **Nota de implementação (2026-06-15):** a notação `/api/*` abaixo descreve o **contrato browser-facing** (corpos, status, cookies) — fonte de verdade dos payloads. Na implementação, o front expõe esse contrato via **Server Actions** do Next (`"use server"`), não como URLs `/api/*` públicas; o modelo de segurança (same-origin, cookie `session` HttpOnly, chave interna, sem token no browser) é idêntico.
 
 | Rota | Browser → Next (`/api/*`) | Next → Nest |
 |---|---|---|

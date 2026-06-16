@@ -47,7 +47,7 @@ Use os termos canônicos do `CONTEXT.md`: **título** (filme ou série), **avali
 
 ## 1. Resumo executivo
 
-O **Guia de Streaming** é um webapp para usuários brasileiros descobrirem **em qual catálogo de streaming** um filme ou série está disponível, consolidando busca, ficha completa e provedores em uma única interface, sem precisar consultar JustWatch, IMDb e o app de cada streaming separadamente. O MVP cobre cadastro, busca, ficha de filme/série, indicação de "onde assistir" via TMDB API (região BR), avaliação 1-10, marcação de "visto", favoritos, perfil e tema claro/escuro.
+O **Guia de Streaming** é um webapp para usuários brasileiros descobrirem **em qual catálogo de streaming** um filme ou série está disponível, consolidando busca, ficha completa e provedores em uma única interface, sem precisar consultar JustWatch, IMDb e o app de cada streaming separadamente. O MVP cobre cadastro, busca, ficha de filme/série, indicação de "onde assistir" via TMDB API (região BR), avaliação 1-10, marcação de "visto", favoritos, perfil e tema claro/escuro. O app é apresentado ao usuário sob a marca **Plot Twist** (o nome de projeto/repositórios permanece "Guia de Streaming").
 
 A aplicação é construída sobre uma arquitetura **BFF (Backend-for-Frontend)**: o navegador fala **só** com o Next.js (same-origin), que fala com a API Nest.js **server-to-server**. A entrega final é **02/07/2026** — restam **~4,5 semanas** a partir do início desta versão (30/05), com um time de **13 integrantes** de disponibilidade variável. O escopo é deliberadamente enxuto e priorizado (§5.1) para caber nesse prazo.
 
@@ -296,7 +296,7 @@ Usuário (qualquer) digita query → browser chama `GET /api/titles/search` no *
 
 > Desenho fechado em 30/05/2026.
 
-O browser fala **só** com o Next (same-origin). O Next fala com o Nest **server-to-server** e é a **única** origem que acessa o Nest, que fica **fechado** pela chave interna. Toda chamada browser-facing — **auth + busca** — passa por route handlers `/api/*` do Next.
+O browser fala **só** com o Next (same-origin). O Next fala com o Nest **server-to-server** e é a **única** origem que acessa o Nest, que fica **fechado** pela chave interna. Toda chamada browser-facing — **auth + busca** — passa por **Server Actions** do Next (`"use server"`).
 
 ```
 [Browser] ──same-origin──> [Next.js / BFF (Vercel)] ──server-to-server──> [Nest API (Azure VM)] ──> [TMDB]
@@ -315,6 +315,8 @@ O browser fala **só** com o Next (same-origin). O Next fala com o Nest **server
 - **Sem refresh token no MVP** (stretch §5.3).
 
 **Contrato — browser ↔ Next ↔ Nest (dois hops):**
+
+> **Nota de implementação (2026-06-15):** a notação `/api/*` abaixo descreve o **contrato browser-facing** (corpos, status, cookies) e é a fonte de verdade dos payloads. Na implementação, o front expõe esse contrato via **Server Actions** do Next (`"use server"`) — funções server-side que gravam/leem o cookie `session` e injetam `X-Internal-Key`/`Bearer`/`X-Client-IP` — **não** como URLs `/api/*` públicas. O modelo de segurança (BFF same-origin, cookie HttpOnly, chave interna, sem token no browser) é idêntico.
 
 | Endpoint | Browser → Next (`/api/*`) | Next → Nest |
 |---|---|---|
@@ -365,7 +367,7 @@ O browser fala **só** com o Next (same-origin). O Next fala com o Nest **server
 
 ### 9.1 Frontend — Next.js (+ camada BFF)
 
-App Router, file-based routing, ecossistema React maduro. Integração nativa com Vercel para deploy. A camada **BFF** é implementada via **Route Handlers `/api/*`** (`app/api/.../route.ts`): leem o cookie `session`, injetam `X-Internal-Key` / `Bearer` / `X-Client-IP`, chamam o Nest e (login/logout) setam/apagam o cookie. **Helmet/CSP no Next** protege o browser.
+App Router, file-based routing, ecossistema React maduro. Integração nativa com Vercel para deploy. A camada **BFF** é implementada via **Server Actions** do Next (`"use server"`): leem/gravam o cookie `session`, injetam `X-Internal-Key` / `Bearer` / `X-Client-IP`, chamam o Nest e (login/logout) setam/apagam o cookie. **Helmet/CSP no Next** protege o browser.
 
 ### 9.2 Backend — Nest.js
 
@@ -475,7 +477,7 @@ Capturas vão em `docs/telas/` ao longo do desenvolvimento.
 |---|---|---|---|
 | Front scaffold Next.js + CI básico | S0 | **P0** | bloqueia todo o front |
 | Infra Azure VM + Docker compose + Bicep + Actions | S0 (paralela) | **P0** | PR #16 em curso |
-| Camada BFF no front (route handlers `/api/*`) — *N3* | S1 | **P0** | maior trabalho novo do front |
+| Camada BFF no front (Server Actions) — *N3* | S1 | **P0** | maior trabalho novo do front |
 | Guard global de chave interna (`X-Internal-Key`) — *N1* | S1 | **P0** | fecha o back |
 | `GET /auth/me` + JwtStrategy + JwtAuthGuard — *N2* | S1 | **P0** | reaproveita `/auth/profile` do PR #21 |
 | JwtModule + throttler + pino + cache-manager | S1 | **P0** | JwtModule já adiantado no PR #21 |
@@ -529,7 +531,7 @@ Capturas vão em `docs/telas/` ao longo do desenvolvimento.
 |---|---|---|---|
 | **Cronograma recomprimido (8 → ~4,5 semanas)** até 02/07 | alta | alto | **Tiering P0/P1** (§5.1) com linha de corte explícita; núcleo demonstrável fechado já na Sprint 1; deploy antecipado para a Sprint 2 (não esperar o fechamento). |
 | Time grande (13) com baixa disponibilidade individual (média 2-5h/semana) | alta | alto | Tasks pequenas e bem definidas; PO dedicado a desbloquear; PRD estruturado para reduzir reinterpretação e acelerar a implementação. |
-| **Front carrega o maior peso novo da auth** (camada BFF — N3) | média | alto | BFF via Route Handlers `/api/*` (menor carga conceitual); contrato dos dois hops fechado no Dia 1; buy-in do Davi confirmado. |
+| **Front carrega o maior peso novo da auth** (camada BFF — N3) | média | alto | BFF via Server Actions (menor carga conceitual); contrato dos dois hops fechado no Dia 1; buy-in do Davi confirmado. |
 | **Integração dos dois hops** (cookie no Next + Bearer/secret/X-Client-IP no Nest) falha na junção | média | médio | Mock dos `/api/*` no front desde o Dia 1; teste de `/auth/me` (rehidratação) e de rate-limit com `X-Client-IP` nos cenários obrigatórios (§8.3). |
 | **PR #21 (auth) entrou off-spec** (refresh token, `/auth/profile`, login stub, senha mín. 6) | alta | médio | Realinhar na fase de issues: aproveitar JwtModule; `/auth/profile`→`/auth/me`; **remover `/auth/refresh`** (stretch); completar login (Prisma+bcrypt+`user`); senha mín. **8**. Ver §15. |
 | TMDB pode não cobrir provedores para títulos de nicho | média | médio | Mostrar "não disponível em streaming BR" como estado válido. |
