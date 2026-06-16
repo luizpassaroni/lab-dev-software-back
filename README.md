@@ -1,147 +1,168 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Guia de Streaming API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Backend NestJS do Guia de Streaming. A API centraliza autenticacao, dados do usuario e integracao com a TMDB. O browser deve chamar o BFF do frontend; o Next chama esta API server-to-server usando `X-Internal-Key`.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Setup local
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository with Prisma ORM and JWT authentication.
-
-**Features:**
-
-- 🔐 JWT-based authentication (24h token expiration)
-- 🗄️ Prisma ORM for database management
-- ✅ Input validation with class-validator
-- 🛡️ TypeScript for type safety
-- 📚 Ready for production with secure configurations
-
-## Logout
-
-Logout é tratado no BFF: o Next apaga o cookie `session`. O Nest não tem endpoint de logout nem blocklist. O token segue válido até expirar em 24h. A blocklist de tokens revogados é stretch, consulte o [PRD §5.3](docs/PRD.md#53-pode-entrar-se-sobrar-tempo-stretch) e as [decisões registradas no PRD §15](docs/PRD.md#15-decisões-registradas).
-
-## Environment Setup
-
-Before running the project, you need to configure environment variables:
-
-1. Copy `.env.example` to `.env`:
+Instale as dependencias:
 
 ```bash
-$ cp .env.example .env
+npm install
 ```
 
-2. Generate a secure JWT secret (in production):
+Crie o arquivo de ambiente:
 
 ```bash
-$ openssl rand -base64 32
-# Or using Node.js:
-$ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+cp .env.example .env
 ```
 
-3. Update `.env` with your values:
+No Windows PowerShell, o equivalente e:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Preencha as variaveis em `.env`:
+
+| Variavel | Uso local |
+| --- | --- |
+| `DATABASE_URL` | URL do PostgreSQL usado pelo Prisma. O compose local usa `postgresql://local_user:local_password_123@localhost:5432/uva_local_db` no host. |
+| `JWT_SECRET` | Segredo para assinar JWT. Gere um valor proprio para ambientes compartilhados. |
+| `TMDB_API_TOKEN` | Token Bearer v4 da TMDB. |
+| `INTERNAL_API_KEY` | Chave compartilhada com o BFF do frontend. O mesmo valor deve estar no `.env.local` do front. |
+| `NODE_ENV` | Use `development` localmente. |
+| `SWAGGER_ENABLED` | Use `true` para habilitar `/api/docs` fora de producao. |
+| `PORT` | Porta da API. O default local e `3000`, seguindo `docker-compose.local.yml`. |
+
+Gere segredos locais quando precisar:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+```
+
+### PostgreSQL via Docker e API nativa
+
+O `docker-compose.local.yml` e a referencia do setup local Docker. Ele define:
+
+| Servico | Host/porta | Usuario | Banco |
+| --- | --- | --- | --- |
+| `postgres_local` | `localhost:5432` | `local_user` | `uva_local_db` |
+| `api_local` | `localhost:3000` | - | - |
+
+Para subir apenas o banco:
+
+```bash
+docker compose -f docker-compose.local.yml up -d postgres_local
+```
+
+Aplique as migrations:
+
+```bash
+npx prisma migrate dev
+```
+
+Suba a API em modo desenvolvimento:
+
+```bash
+npm run start:dev
+```
+
+Com esse caminho, a API fica em:
+
+```text
+http://localhost:3000
+```
+
+Se o frontend Next tambem estiver rodando localmente, configure o front para chamar:
 
 ```env
-JWT_SECRET=<your-generated-secret>
-DATABASE_URL=<your-database-url>
+API_INTERNAL_URL=http://localhost:3000
+INTERNAL_API_KEY=<mesmo valor do back>
 ```
 
-**Important:** Never use the default `JWT_SECRET=trocar-em-producao` in production. The application will fail to start if JWT_SECRET is missing or using the default unsafe value.
+Caso o Next precise usar a mesma maquina ao mesmo tempo, mantenha o backend conforme o compose (`localhost:3000`) e suba o frontend em outra porta livre.
+
+### Stack local via Docker
+
+Para subir os servicos definidos no compose local:
+
+```bash
+docker compose -f docker-compose.local.yml up --build
+```
+
+O container da API escuta `3000` e publica `localhost:3000`, conforme o compose local.
 
 ## API Documentation
 
-Set `SWAGGER_ENABLED=true` outside production and start the application to access the interactive OpenAPI documentation at [`/api/docs`](http://localhost:3000/api/docs). The Swagger UI supports the JWT Bearer token and the `X-Internal-Key` header used by the BFF.
+Com `SWAGGER_ENABLED=true` e fora de producao, a documentacao interativa fica em:
 
-## Project setup
-
-```bash
-$ npm install
+```text
+http://localhost:3000/api/docs
 ```
 
-## Compile and run the project
+O Swagger suporta JWT Bearer e o header `X-Internal-Key` usado pelo BFF.
+
+## Logout
+
+Logout e tratado no BFF: o Next apaga o cookie `session`. O Nest nao tem endpoint de logout nem blocklist. O token segue valido ate expirar em 24h. A blocklist de tokens revogados e stretch; consulte o [PRD section 5.3](docs/PRD.md#53-pode-entrar-se-sobrar-tempo-stretch) e as [decisoes registradas no PRD section 15](docs/PRD.md#15-decisões-registradas).
+
+## Scripts
 
 ```bash
 # development
-$ npm run start
+npm run start
 
 # watch mode
-$ npm run start:dev
+npm run start:dev
 
 # production mode
-$ npm run start:prod
+npm run start:prod
 
 # debug mode
-$ npm run start:debug
+npm run start:debug
+
+# build
+npm run build
 ```
 
-## Run tests
+## Tests
 
 ```bash
 # unit tests
-$ npm run test
+npm run test
 
 # watch mode
-$ npm run test:watch
+npm run test:watch
 
 # e2e tests
-$ npm run test:e2e
+npm run test:e2e
 
-# test coverage
-$ npm run test:cov
+# coverage
+npm run test:cov
 ```
 
-## Deployment
+## Deploy
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+O deploy de producao roda na Azure VM com Docker compose e e disparado pelo GitHub Actions em pushes para `main` que alterem arquivos de infra, Docker, Prisma, package ou codigo fonte.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Fluxo de producao:
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+1. O workflow provisiona/atualiza a infraestrutura via Bicep.
+2. A imagem Docker da API e buildada e publicada no GitHub Container Registry.
+3. A VM recebe o `docker-compose.prod.yml` e um `.env` gerado pelo workflow.
+4. `docker compose up -d --force-recreate` recria os containers.
+5. O workflow executa `npx prisma migrate deploy` dentro do container da API.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+Variaveis e secrets de producao:
 
-## Resources
+| Nome | Origem em producao | Uso |
+| --- | --- | --- |
+| `DATABASE_URL` | Montada no `docker-compose.prod.yml` a partir do servico Postgres interno. | Conexao do Prisma com o PostgreSQL. |
+| `JWT_SECRET` | GitHub Secret `PROD_JWT_SECRET`, escrito no `.env` da VM pelo workflow. | Assinatura e validacao dos JWTs. |
+| `TMDB_API_TOKEN` | GitHub Secret `PROD_TMDB_API_TOKEN`, escrito no `.env` da VM pelo workflow. | Token Bearer v4 para chamadas TMDB. |
+| `INTERNAL_API_KEY` | GitHub Secret `PROD_INTERNAL_API_KEY`, escrito no `.env` da VM pelo workflow. | Chave compartilhada com o BFF do frontend. |
+| `NODE_ENV` | Definido como `production` na imagem Docker. | Modo de execucao da aplicacao. |
+| `PORT` | `.env` da VM e `docker-compose.prod.yml`. | Porta interna da API; default `3000`. |
+| `POSTGRES_PASSWORD` | GitHub Secret `PROD_POSTGRES_PASSWORD`, escrito no `.env` da VM pelo workflow. | Senha do banco PostgreSQL de producao. |
 
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Valores reais de secrets nunca devem ser versionados.
