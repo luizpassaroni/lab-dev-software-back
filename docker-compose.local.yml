@@ -7,7 +7,7 @@ services:
       POSTGRES_PASSWORD: local_password_123
       POSTGRES_DB: uva_local_db
     volumes:
-      - uva_db_data:/var/lib/postgresql/data
+      - uva_db_data:/var/lib/postgresql
     ports:
       - "5432:5432"
     healthcheck:
