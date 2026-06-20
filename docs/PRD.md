@@ -178,7 +178,7 @@ Registrado para não voltar atrás sem decisão explícita:
   - [ ] Senha mínima 8 caracteres, **sem exigir** complexidade obrigatória (letra/número/símbolo) — alinha com NIST SP 800-63B.
   - [ ] Hash da senha no banco com bcrypt ou argon2 (nunca em texto plano, nunca hash simples como MD5/SHA1).
   - [ ] Email é único no banco (`@unique` no Prisma).
-  - [ ] **Nome:** trim automático; mínimo 2 caracteres após trim; máximo 60; aceita letras (com acento), números, espaços, hífen e apóstrofe; **não exige unicidade**.
+  - [ ] **Nome:** trim automático; mínimo 3 caracteres após trim; máximo 50; aceita letras (com acento), números, espaços, hífen e apóstrofe; **não exige unicidade**.
   - [ ] Cadastro **não** faz auto-login (cria conta → vai para a tela de login). **Sem cookie** no cadastro.
   - **DoD:** `POST /api/auth/register` cria o usuário com hash; email duplicado retorna 409; nenhum cookie é setado.
 
@@ -564,7 +564,7 @@ Capturas vão em `docs/telas/` ao longo do desenvolvimento.
 - **Fluxos de email fora do MVP:** confirmação de email e "esqueci minha senha" ficam em §5.3. Edição de perfil e deleção de conta pelo próprio usuário também fora.
 - **Detalhes de auth:** logout só client-side; rate limit no login 5/15min por IP; validação de email via regex simples (sem MX lookup); senha mínima 8 caracteres sem complexidade obrigatória (NIST SP 800-63B). *(Logout/rate-limit reconfigurados pelo BFF em 30/05; senha mín. 8 mantida.)*
 - **`tmdbType` vira enum Prisma** (`MOVIE | TV`); tradução para `"movie"`/`"tv"` no service.
-- **Validação do nome do User:** trim + 2-60 caracteres + letras (acentos OK) / números / espaço / hífen / apóstrofe; sem unicidade.
+- **Validação do nome do User:** trim + 3-50 caracteres + letras (acentos OK) / números / espaço / hífen / apóstrofe; sem unicidade.
 - **Busca mistura filme e série** (`/search/multi` filtrando pessoa) com badge no card; **paginação via botão "Carregar mais"** (20 por página TMDB, acumula).
 - **Filtros por gênero só na home, single-select, gêneros vindos da TMDB** (`/genre/movie/list` + `/genre/tv/list` em PT-BR, cache permanente). Chips com "Todos" como default. Não atuam em busca por texto no MVP.
 - **Tema:** default segue o sistema via CSS `prefers-color-scheme`; fallback light; toggle sol/lua no header; preferência persistida em localStorage.
