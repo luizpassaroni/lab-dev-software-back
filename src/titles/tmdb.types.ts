@@ -15,9 +15,29 @@ export interface TmdbMultiSearchResponse {
   total_results: number;
 }
 
+export interface TmdbDiscoverResult {
+  id: number;
+  title?: string;
+  name?: string;
+  release_date?: string;
+  first_air_date?: string;
+  poster_path?: string | null;
+}
+
+export interface TmdbDiscoverResponse {
+  page: number;
+  results: TmdbDiscoverResult[];
+  total_pages: number;
+  total_results: number;
+}
+
 export interface TmdbGenre {
   id: number;
   name: string;
+}
+
+export interface TmdbGenreListResponse {
+  genres: TmdbGenre[];
 }
 
 export interface TmdbCastMember {

@@ -49,6 +49,8 @@ describe('Swagger documentation (e2e)', () => {
     expect(document.paths).toHaveProperty('/auth/login');
     expect(document.paths).toHaveProperty('/auth/me');
     expect(document.paths).toHaveProperty('/titles/search');
+    expect(document.paths).toHaveProperty('/titles/discover');
+    expect(document.paths).toHaveProperty('/genres');
     expect(document.components?.securitySchemes).toMatchObject({
       bearer: {
         type: 'http',
@@ -63,8 +65,15 @@ describe('Swagger documentation (e2e)', () => {
     expect(document.paths['/auth/me'].get?.security).toEqual(
       expect.arrayContaining([{ bearer: [] }, { 'internal-key': [] }]),
     );
+    expect(document.paths['/titles/discover'].get?.security).toEqual([
+      { 'internal-key': [] },
+    ]);
+    expect(document.paths['/genres'].get?.security).toEqual([
+      { 'internal-key': [] },
+    ]);
     expect(document.components?.schemas).toHaveProperty('LoginDto');
     expect(document.components?.schemas).toHaveProperty('SearchResponseDto');
+    expect(document.components?.schemas).toHaveProperty('GenreDto');
   });
 
   it('não habilita a documentação em produção', () => {
