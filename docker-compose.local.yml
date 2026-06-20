@@ -1,13 +1,13 @@
 services:
   postgres_local:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: uva_postgres_local
     environment:
       POSTGRES_USER: local_user
       POSTGRES_PASSWORD: local_password_123
       POSTGRES_DB: uva_local_db
     volumes:
-      - uva_db_data:/var/lib/postgresql/data
+      - uva_db_data:/var/lib/postgresql
     ports:
       - "5432:5432"
     healthcheck:
@@ -23,20 +23,21 @@ services:
   api_local:
     build:
       context: .
-      target: development
+      dockerfile: Dockerfile.dev
     container_name: uva_nestjs_local
-    working_dir: /app
-    command: npm run start:dev
     env_file:
       - .env
     environment:
+      NODE_ENV: ${NODE_ENV:-development}
       DATABASE_URL: ${DATABASE_URL}
       PORT: ${PORT:-3000}
       JWT_SECRET: ${JWT_SECRET}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY}
       TMDB_API_TOKEN: ${TMDB_API_TOKEN}
       SWAGGER_ENABLED: ${SWAGGER_ENABLED:-true}
-      NODE_ENV: ${NODE_ENV:-development}
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "1000"
+    command: sh -c "until nc -z postgres_local 5432; do echo 'Aguardando postgres...'; sleep 2; done; npx prisma migrate deploy && npm run start:dev"
     volumes:
       - .:/app
       - uva_api_node_modules:/app/node_modules
