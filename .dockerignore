@@ -1,8 +1,11 @@
 node_modules
 dist
+coverage
 .git
 .github
 infra
 docker-compose*.yml
 npm-debug.log
 /generated/prisma
+.env
+.env.*

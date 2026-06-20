@@ -1,20 +1,20 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: uva_postgres_prod
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-uva_admin_prod}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB:-uva_nestjs_db}
     volumes:
-      - uva_db_data:/var/lib/postgresql/data
+      - uva_db_data:/var/lib/postgresql
     ports:
-      - '127.0.0.1:5432:5432'
+      - "127.0.0.1:5432:5432"
     healthcheck:
       test:
         [
-          'CMD-SHELL',
-          'pg_isready -U ${POSTGRES_USER:-uva_admin_prod} -d ${POSTGRES_DB:-uva_nestjs_db}',
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-uva_admin_prod} -d ${POSTGRES_DB:-uva_nestjs_db}",
         ]
       interval: 5s
       timeout: 5s
@@ -40,8 +40,8 @@ services:
     container_name: uva_caddy_prod
     restart: always
     ports:
-      - '80:80'
-      - '443:443'
+      - "80:80"
+      - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
