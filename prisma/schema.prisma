@@ -6,6 +6,16 @@ datasource db {
   provider = "postgresql"
 }
 
+enum TmdbType {
+  MOVIE
+  TV
+}
+
+enum WatchedOrigin {
+  manual
+  auto
+}
+
 model User {
   id           Int        @id @default(autoincrement())
   name         String
@@ -21,7 +31,7 @@ model Rating {
   id        Int      @id @default(autoincrement())
   userId    Int
   tmdbId    Int
-  tmdbType  String
+  tmdbType  TmdbType
   score     Float
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
@@ -33,7 +43,7 @@ model Watched {
   id        Int      @id @default(autoincrement())
   userId    Int
   tmdbId    Int
-  tmdbType  String
+  tmdbType  TmdbType
   watchedAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
 
@@ -44,7 +54,8 @@ model Favorite {
   id        Int      @id @default(autoincrement())
   userId    Int
   tmdbId    Int
-  tmdbType  String
+  tmdbType  TmdbType
+  origem    WatchedOrigin
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
 
