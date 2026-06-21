@@ -44,6 +44,7 @@ model Watched {
   userId    Int
   tmdbId    Int
   tmdbType  TmdbType
+  origem    WatchedOrigin
   watchedAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
 
@@ -55,7 +56,6 @@ model Favorite {
   userId    Int
   tmdbId    Int
   tmdbType  TmdbType
-  origem    WatchedOrigin
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
 
