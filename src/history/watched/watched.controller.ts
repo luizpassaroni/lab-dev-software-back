@@ -22,7 +22,6 @@ import {
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../auth/guards/jwt.guard';
-//import { AuthenticatedRequest } from '../../auth/interfaces/authenticated-request.interface';
 import type { AuthenticatedRequest } from '../../auth/interfaces/authenticated-request.interface';
 import { TitleType } from '../../titles/dto/title-type.enum';
 import { WatchedResponseDto } from './dto/watched-response.dto';
