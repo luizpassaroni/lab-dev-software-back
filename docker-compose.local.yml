@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  postgres_local:
+    image: postgres:16-alpine
+    container_name: uva_postgres_local
+    environment:
+      POSTGRES_USER: local_user
+      POSTGRES_PASSWORD: local_password_123
+      POSTGRES_DB: uva_local_db
+    ports:
+      - "5432:5432"
+
+  api_local:
+    build: . 
+    container_name: uva_nestjs_local
+    environment:
+      DATABASE_URL: postgres://local_user:local_password_123@postgres_local:5432/uva_local_db
+      PORT: 3000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres_local

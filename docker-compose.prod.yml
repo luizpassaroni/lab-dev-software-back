@@ -1,0 +1,55 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: uva_postgres_prod
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-uva_admin_prod}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-uva_nestjs_db}
+    volumes:
+      - uva_db_data:/var/lib/postgresql/data
+    ports:
+      - '127.0.0.1:5432:5432'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -U ${POSTGRES_USER:-uva_admin_prod} -d ${POSTGRES_DB:-uva_nestjs_db}',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  api:
+    image: ghcr.io/luizpassaroni/nestjs-api:latest
+    container_name: uva_nestjs_api_prod
+    environment:
+      DATABASE_URL: postgres://uva_admin_prod:${POSTGRES_PASSWORD}@postgres:5432/uva_nestjs_db
+      PORT: 3000
+      JWT_SECRET: ${JWT_SECRET}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY}
+      TMDB_API_TOKEN: ${TMDB_API_TOKEN}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: always
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: uva_caddy_prod
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - api
+
+volumes:
+  uva_db_data:
+  caddy_data:
+  caddy_config:
