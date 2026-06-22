@@ -191,6 +191,37 @@ export class TitlesService {
     });
   }
 
+async getCardSummary(
+  type: TitleType,
+  id: number,
+): Promise<{
+  tmdbId: number;
+  tmdbType: 'MOVIE' | 'TV';
+  title: string;
+  year: number | null;
+  posterUrl: string | null;
+}> {
+  try {
+    const detail = await this.getDetailsPart(type, id);
+    return {
+      tmdbId: detail.tmdbId,
+      tmdbType: detail.tmdbType,
+      title: detail.title,
+      year: detail.year,
+      posterUrl: detail.posterUrl,
+    };
+  } catch {
+    // Título indisponível na TMDB (deletado ou fora do ar) → retorna fallback
+    return {
+      tmdbId: id,
+      tmdbType: type === TitleType.MOVIE ? 'MOVIE' : 'TV',
+      title: '',
+      year: null,
+      posterUrl: null,
+    };
+  }
+}
+
   async getDetail(type: TitleType, id: number): Promise<TitleDetailDto> {
     const detail = await this.getDetailsPart(type, id);
     const providers = await this.getProvidersPart(type, id);
