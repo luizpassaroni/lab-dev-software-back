@@ -1,135 +1,196 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Plot Twist — Back
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+API do **Plot Twist**, um guia de streaming: o usuário busca um filme ou série e
+descobre **onde assistir no Brasil**, com sinopse, elenco, nota da TMDB e os
+provedores disponíveis. Usuários autenticados podem **avaliar (1–10)**, marcar
+como **visto** e **favoritar** títulos.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+Este serviço é o **backend (NestJS)**. Ele fica atrás do BFF (o Next, repo
+[`lab-dev-software-front`](https://github.com/luizpassaroni/lab-dev-software-front)):
+o navegador fala **só** com o Next, e o Next fala com esta API
+server-to-server. Ver `docs/PRD.md` (§8.1), `CONTEXT.md` e
+`docs/sprint-1-plan.md`.
 
-## Description
+## Stack
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository with Prisma ORM and JWT authentication.
+- **Node.js 20** + **TypeScript 5**
+- **NestJS 11**
+- **Prisma 7** (ORM) sobre **PostgreSQL 18**
+- **JWT** (`@nestjs/jwt` + `passport-jwt`) e **bcrypt** para senha
+- **TMDB** (API v4) como fonte do catálogo
+- **class-validator** (validação de DTOs e de env), **@nestjs/throttler** (rate limit), **@nestjs/cache-manager** (cache TTL 1h)
+- Testes com **Jest**
 
-**Features:**
-- 🔐 JWT-based authentication (24h token expiration)
-- 🗄️ Prisma ORM for database management
-- ✅ Input validation with class-validator
-- 🛡️ TypeScript for type safety
-- 📚 Ready for production with secure configurations
+## Pré-requisitos
 
-## Environment Setup
+Para rodar num ambiente limpo você precisa de **uma** das duas opções abaixo:
 
-Before running the project, you need to configure environment variables:
+**Opção A — local (sem Docker):**
+- Node.js **20+** e npm
+- Um **PostgreSQL** acessível (local ou remoto)
 
-1. Copy `.env.example` to `.env`:
-```bash
-$ cp .env.example .env
-```
+**Opção B — Docker (recomendado para subir rápido):**
+- Docker + Docker Compose (sobe Postgres + API juntos)
 
-2. Generate a secure JWT secret (in production):
-```bash
-$ openssl rand -base64 32
-# Or using Node.js:
-$ node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
+Em ambos os casos você precisa de um **token v4 da TMDB**
+(<https://www.themoviedb.org/settings/api>) para que a busca/ficha funcionem.
 
-3. Update `.env` with your values:
-```env
-JWT_SECRET=<your-generated-secret>
-DATABASE_URL=<your-database-url>
-```
-
-**Important:** Never use the default `JWT_SECRET=trocar-em-producao` in production. The application will fail to start if JWT_SECRET is missing or using the default unsafe value.
-
-## Project setup
+## Setup do zero (local, sem Docker)
 
 ```bash
-$ npm install
+# 1. Clonar e entrar no projeto
+git clone https://github.com/luizpassaroni/lab-dev-software-back.git
+cd lab-dev-software-back
+
+# 2. Instalar dependências
+npm install
+
+# 3. Configurar variáveis de ambiente
+cp .env.example .env
+#   edite o .env (ver tabela abaixo). No mínimo:
+#   - DATABASE_URL apontando para o seu Postgres
+#   - JWT_SECRET e INTERNAL_API_KEY com 16+ caracteres
+#   - TMDB_API_TOKEN com o seu token v4
+#   Gere segredos seguros com:  openssl rand -base64 32
+
+# 4. Gerar o Prisma Client (OBRIGATÓRIO antes de buildar/testar)
+npx prisma generate
+
+# 5. Aplicar as migrations no banco
+npx prisma migrate deploy   # ou: npx prisma migrate dev (em desenvolvimento)
+
+# 6. Subir em modo desenvolvimento (watch)
+npm run start:dev
 ```
 
-## Compile and run the project
+A API sobe em **http://localhost:3000** (porta configurável via `PORT`).
+Verifique com:
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
-
-# debug mode
-$ npm run start:debug
+curl http://localhost:3000/health
+# -> {"status":"ok"}
 ```
 
-## Run tests
+> ⚠️ **Gate obrigatório — `prisma generate`.** O Prisma Client **não** é gerado
+> automaticamente no `npm install` (não há `postinstall`). Rode
+> **`npx prisma generate` antes de `npm run build` e antes de `npm test`** —
+> sem isso a compilação e os testes falham por falta dos tipos do `@prisma/client`.
+
+## Variáveis de ambiente
+
+Copie `.env.example` para `.env` e preencha:
+
+| Variável | Obrigatória | Default | Descrição |
+|---|---|---|---|
+| `DATABASE_URL` | sim | — | String de conexão do PostgreSQL (`postgresql://user:pass@host:5432/db`) |
+| `JWT_SECRET` | sim | `trocar-em-producao` | Segredo do JWT. **Mín. 16 caracteres** — o app não sobe se for menor. Nunca use o default em produção. |
+| `INTERNAL_API_KEY` | sim | `trocar-em-producao` | Segredo compartilhado com o BFF (Next). Vai no header `X-Internal-Key` de toda chamada Next → Nest. **Mín. 16 caracteres.** Use o **mesmo valor** nos dois lados. |
+| `TMDB_API_TOKEN` | sim (para titles) | — | Token **v4 (Read Access / Bearer)** da TMDB |
+| `NODE_ENV` | não | `development` | Ambiente de execução |
+| `PORT` | não | `3000` | Porta do servidor |
+
+As variáveis são validadas no boot (`src/env.validation.ts`): se `JWT_SECRET`
+ou `INTERNAL_API_KEY` tiverem menos de 16 caracteres, a aplicação **falha ao
+iniciar** com mensagem explícita.
+
+## Comandos
 
 ```bash
-# unit tests
-$ npm run test
-
-# watch mode
-$ npm run test:watch
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+npm run start:dev     # desenvolvimento (watch)
+npm run start         # desenvolvimento (sem watch)
+npm run build         # compila para dist/  (rode prisma generate antes)
+npm run start:prod    # produção: node dist/src/main
+npm run lint          # ESLint --fix
+npm run format        # Prettier
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+## Testes
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+npx prisma generate   # gate: necessário antes da primeira execução
+npm run test          # testes unitários (Jest)
+npm run test:watch    # watch
+npm run test:cov      # cobertura
+npm run test:e2e      # testes end-to-end
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+## Banco de dados (Prisma)
 
-## Resources
+- Schema: `prisma/schema.prisma` — modelos `User`, `Rating`, `Watched`, `Favorite`.
+  Títulos não são persistidos localmente: são referenciados por `tmdbId` + `tmdbType` (`MOVIE`/`TV`).
+- Migration inicial: `prisma/migrations/20260523123455_init`.
 
-Check out a few resources that may come in handy when working with NestJS:
+```bash
+npx prisma generate            # gera o Prisma Client (gate de build/test)
+npx prisma migrate dev         # cria/aplica migration em desenvolvimento
+npx prisma migrate deploy      # aplica migrations existentes (produção/CI)
+npx prisma studio              # inspeciona o banco no navegador
+```
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+## Rodar com Docker
 
-## Support
+**Local (Postgres + API, com hot-reload e migrations automáticas):**
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+```bash
+docker compose -f docker-compose.local.yml up --build
+```
 
-## Stay in touch
+Sobe um Postgres 18 e a API em `http://localhost:3000`. O container espera o
+Postgres ficar pronto, roda `prisma migrate deploy` e inicia em modo watch.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+**Produção** (`docker-compose.prod.yml`): usa a imagem publicada
+`ghcr.io/luizpassaroni/nestjs-api:latest` atrás de um reverse proxy **Caddy**
+(TLS automático nas portas 80/443) + Postgres com volume persistente. Exige as
+variáveis `POSTGRES_PASSWORD`, `JWT_SECRET`, `INTERNAL_API_KEY` e
+`TMDB_API_TOKEN` no ambiente. A infra (Azure VM, região Brazil South) está
+descrita em `infra/main.bicep`.
 
-## License
+## Endpoints principais
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+> **Header obrigatório.** Um guard global (`InternalKeyGuard`) exige o header
+> `X-Internal-Key: <INTERNAL_API_KEY>` em **todas** as rotas, exceto as públicas
+> (`/health`). Em produção, quem injeta esse header é o BFF (Next) — o navegador
+> nunca chama esta API diretamente. Há também rate limit global (100 req/min por IP).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/health` | Health check (público, sem header) |
+| `POST` | `/auth/register` | Cadastro (nome, email, senha) |
+| `POST` | `/auth/login` | Login — emite JWT (expira em 24h) |
+| `GET` | `/titles/search?q=<termo>&page=<n>` | Busca filmes + séries na TMDB (região BR) |
+| `GET` | `/titles/:type/:id` | Ficha do título (`type` = `movie`/`tv`, `id` = id da TMDB) |
+
+Sobre **logout**: não há endpoint server-side — a sessão é descartada no BFF
+(remoção do cookie). Ver `CONTEXT.md` e a issue de contrato de logout.
+
+## URL no ar
+
+<!-- TODO(META-4 / #80): preencher com a URL pública da API após o deploy.
+     Ex.: https://<dominio-ou-ip>/health  deve responder {"status":"ok"}. -->
+
+- **API:** _a definir_ — `GET /health` deve responder `{"status":"ok"}`.
+
+## Estrutura do projeto
+
+```
+src/
+├── auth/         # cadastro, login, JWT, guards de autenticação
+├── titles/       # busca e ficha de títulos (cliente TMDB + cache)
+├── user/         # dados do usuário
+├── prisma/       # PrismaModule/Service
+├── common/       # guards (InternalKey, throttler), decorators (@Public)
+├── env.validation.ts
+└── main.ts
+prisma/           # schema + migrations
+infra/            # main.bicep (Azure)
+docs/             # PRD, contratos de API, planos de sprint, issues
+```
+
+## Documentação
+
+Ordem de leitura recomendada do projeto:
+
+1. `docs/PRD.md` — o quê e o porquê
+2. `CONTEXT.md` — glossário canônico (vocabulário do time; idêntico nos 2 repos)
+3. `docs/sprint-1-plan.md` — o recorte da sprint
+4. A issue — a tarefa
