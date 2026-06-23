@@ -1,11 +1,11 @@
 # PRD — Guia de Streaming
 
-**Versão:** 2.0
+**Versão:** 2.1
 **Autor:** Caio Planinschek (PO)
-**Data:** 30/05/2026
+**Data:** 23/06/2026
 **Audiência:** time do projeto Guia de Streaming (devs back, devs front, QA)
 **Status:** ativo
-**Supersede:** v1.1 (26/05/2026). Mudanças principais desta versão: **arquitetura de auth migrada para BFF** (§6/§8/§10/§15), **cronograma recomprimido para a entrega de 02/07** (§1/§13/§16), **tiering de prioridade P0/P1 dentro do MVP** (§5.1), e **reestruturação didática** (novo §0, DoD por user story, matriz de rastreabilidade em §13).
+**Supersede:** v2.0 (30/05/2026). Mudanças desta versão (redesign da Home): **tema escuro como padrão** (US-5.1 / §5.1 / §15), **estado inicial "Em alta"** na home via discover sem gênero (US-2.3 / §12 / §15), **marca pública "Plot Twist"** (§1) e **descrição da Home atualizada** (§7.1 / §12). Histórico: a v2.0 migrou a auth para BFF e recomprimiu o cronograma para 02/07 (supersedeu a v1.1 de 26/05).
 
 ---
 
@@ -48,6 +48,8 @@ Use os termos canônicos do `CONTEXT.md`: **título** (filme ou série), **avali
 ## 1. Resumo executivo
 
 O **Guia de Streaming** é um webapp para usuários brasileiros descobrirem **em qual catálogo de streaming** um filme ou série está disponível, consolidando busca, ficha completa e provedores em uma única interface, sem precisar consultar JustWatch, IMDb e o app de cada streaming separadamente. O MVP cobre cadastro, busca, ficha de filme/série, indicação de "onde assistir" via TMDB API (região BR), avaliação 1-10, marcação de "visto", favoritos, perfil e tema claro/escuro.
+
+> **Nome do produto × marca:** "Guia de Streaming" é o nome do projeto (acadêmico/interno); **"Plot Twist"** é o nome público da marca, exibido na interface — no hero da home e no título das abas (metadata). Os dois se referem ao mesmo produto.
 
 A aplicação é construída sobre uma arquitetura **BFF (Backend-for-Frontend)**: o navegador fala **só** com o Next.js (same-origin), que fala com a API Nest.js **server-to-server**. A entrega final é **02/07/2026** — restam **~4,5 semanas** a partir do início desta versão (30/05), com um time de **13 integrantes** de disponibilidade variável. O escopo é deliberadamente enxuto e priorizado (§5.1) para caber nesse prazo.
 
@@ -132,8 +134,8 @@ O projeto é a entrega da disciplina Laboratório de Desenvolvimento de Software
 
 - Marcação manual de "visto" e de "favorito".
 - Perfil do usuário: nome, data de criação, totais (vistos / avaliados / favoritos) e listas simples dos 30 itens mais recentes de cada uma.
-- Home com destaques e filtros por gênero (single-select).
-- Dark mode e light mode.
+- Home com destaques e filtros por gênero (single-select), com estado inicial **"Em alta"** (populares).
+- Dark mode (padrão) e light mode.
 - Responsividade básica em desktop (foco principal) → tablets/celulares.
 
 ### 5.2 Fora do escopo
@@ -178,7 +180,7 @@ Registrado para não voltar atrás sem decisão explícita:
   - [ ] Senha mínima 8 caracteres, **sem exigir** complexidade obrigatória (letra/número/símbolo) — alinha com NIST SP 800-63B.
   - [ ] Hash da senha no banco com bcrypt ou argon2 (nunca em texto plano, nunca hash simples como MD5/SHA1).
   - [ ] Email é único no banco (`@unique` no Prisma).
-  - [ ] **Nome:** trim automático; mínimo 2 caracteres após trim; máximo 60; aceita letras (com acento), números, espaços, hífen e apóstrofe; **não exige unicidade**.
+  - [ ] **Nome:** trim automático; mínimo 3 caracteres após trim; máximo 50; aceita letras (com acento), números, espaços, hífen e apóstrofe; **não exige unicidade**.
   - [ ] Cadastro **não** faz auto-login (cria conta → vai para a tela de login). **Sem cookie** no cadastro.
   - **DoD:** `POST /api/auth/register` cria o usuário com hash; email duplicado retorna 409; nenhum cookie é setado.
 
@@ -213,11 +215,12 @@ Registrado para não voltar atrás sem decisão explícita:
   - **DoD:** abrir um título da busca renderiza a ficha completa com a área de "onde assistir" (US-3.1) embutida.
 
 - **US-2.3** Como visitante ou logado, quero descobrir títulos navegando por gênero a partir da home.
-  - [ ] Chips horizontais clicáveis no topo da home: "Todos | Ação | Comédia | Drama | Terror | ..." (lista vem da TMDB via `/genre/movie/list` + `/genre/tv/list` em PT-BR, com cache permanente no back).
-  - [ ] **Single-select**: um gênero ativo por vez; clicar no chip ativo de novo volta para "Todos".
-  - [ ] Quando um gênero é selecionado, exibir destaques daquele gênero via TMDB `/discover/movie?with_genres=X` (e equivalente `/discover/tv`).
+  - [ ] Chips horizontais clicáveis na home (abaixo do hero e da busca): "Em alta | Ação | Comédia | Drama | Terror | ..." (a lista de gêneros vem da TMDB via `/genre/movie/list` + `/genre/tv/list` em PT-BR, com cache permanente no back).
+  - [ ] **Single-select**: um gênero ativo por vez; clicar no chip ativo de novo volta para **"Em alta"**.
+  - [ ] **Estado inicial "Em alta":** sem nenhum gênero selecionado, a home exibe uma grade de títulos populares via discover **sem gênero** (`GET /api/titles/discover?page=N`, sem `genre`); o back retorna os populares do momento (ISSUE-BACK-30).
+  - [ ] Quando um gênero é selecionado, exibir destaques daquele gênero via discover **com gênero** (TMDB `/discover/movie?with_genres=X` e equivalente `/discover/tv`).
   - [ ] Filtro **não** atua dentro de resultados de busca por texto no MVP (vai para §5.3).
-  - **DoD:** selecionar "Ação" na home troca os destaques para títulos de ação; clicar de novo volta para "Todos".
+  - **DoD:** a home abre em "Em alta" (populares); selecionar "Ação" troca os destaques para títulos de ação; clicar de novo volta para "Em alta".
 
 ### Épico E3 — Onde assistir
 
@@ -255,10 +258,10 @@ Registrado para não voltar atrás sem decisão explícita:
 ### Épico E5 — Tema e UI
 
 - **US-5.1** Como usuário, quero alternar entre dark e light mode.
-  - [ ] **Default na primeira visita:** segue o sistema operacional via CSS `prefers-color-scheme`; fallback para light se o sistema não opinar.
+  - [ ] **Default na primeira visita: tema escuro (dark).** A identidade da marca (Plot Twist) é cinematográfica/escura, então o tema escuro é o padrão — não o `prefers-color-scheme` do sistema.
   - [ ] Toggle (ícone sol/lua) sempre visível no header global, canto direito.
-  - [ ] Preferência persistida no navegador (localStorage) — uma vez tocado, a escolha do usuário sobrescreve o sistema.
-  - **DoD:** o toggle alterna o tema, persiste após F5, e a primeira visita respeita o `prefers-color-scheme`.
+  - [ ] Preferência persistida no navegador (localStorage) — uma vez tocado, a escolha do usuário sobrescreve o default.
+  - **DoD:** o toggle alterna o tema, persiste após F5; a primeira visita abre em dark.
 
 - **US-5.2** Como usuário, quero usar o site com layout responsivo básico em desktop.
   - **DoD:** as telas principais (home, busca, ficha, perfil) não quebram em larguras de tablet/celular via breakpoints CSS.
@@ -269,7 +272,7 @@ Registrado para não voltar atrás sem decisão explícita:
 
 ### 7.1 Onboarding → primeira busca
 
-Visitante chega na home → vê barra de busca + destaques → pode pesquisar sem login (`/api/titles/search` same-origin) → clica em título → vê ficha → vê "onde assistir" → se quer avaliar/favoritar, é levado para o cadastro/login → após login, volta para a ficha.
+Visitante chega na home → vê o hero da marca (Plot Twist) + barra de busca + chips de gênero com a grade **"Em alta"** (populares) → pode pesquisar sem login (`/api/titles/search` same-origin) ou navegar pelos destaques → clica em título → vê ficha → vê "onde assistir" → se quer avaliar/favoritar, é levado para o cadastro/login → após login, volta para a ficha.
 
 ### 7.2 Avaliação que marca como visto
 
@@ -438,7 +441,7 @@ Capturas vão em `docs/telas/` ao longo do desenvolvimento.
 
 | Tela | Objetivo | Status |
 |---|---|---|
-| Home | Busca, destaques, filtros por gênero | a desenhar |
+| Home | Hero da marca (Plot Twist) + busca + chips de gênero ("Em alta" como padrão) + grade de destaques | a desenhar |
 | Resultados de busca | Lista de cards (filme/série) | a desenhar |
 | Ficha do título | Sinopse + provedores + ações | a desenhar |
 | Login / Cadastro | Auth local (via BFF) | a desenhar |
@@ -542,6 +545,11 @@ Capturas vão em `docs/telas/` ao longo do desenvolvimento.
 
 > Log **append-only** de decisões fechadas. Entradas novas no topo de cada bloco datado; entradas antigas **não** são reescritas (mesmo quando superadas — a superseção é anotada).
 
+### 23/06/2026
+
+- **Redesign da Home (marca Plot Twist) — o design passa a mandar no PRD.** A home foi redesenhada e o documento se ajusta. Mudanças: (1) **tema escuro vira o padrão** da primeira visita (supersede o "segue `prefers-color-scheme` / fallback light" de 24/05 e a US-5.1) — a marca é cinematográfica/escura; toggle e persistência mantidos; (2) **estado inicial "Em alta"** na home — sem gênero selecionado, exibe populares via discover **sem gênero** (supersede o chip "Todos = sem grade" de 24/05 e a US-2.3); (3) **"Plot Twist" é o nome público da marca** (§1), no hero e na metadata, enquanto "Guia de Streaming" segue como nome do projeto; (4) **home reordenada** para hero → busca → chips → grade, com fundo ambiente e animações da marca/busca (§7.1 / §12). Origem: redesign + verificação cruzada front × back × PRD de 23/06.
+- **Contrato `discover` ganha `genre` opcional (ISSUE-BACK-30).** Para o "Em alta", `GET /titles/discover` passa a aceitar chamada **sem `genre`**, retornando os populares do momento (filmes + séries; a TMDB ordena por popularidade). Com `genre`, comportamento inalterado (BACK-24). Cache separa `trending` de cada gênero. Enquanto o back não publica a mudança, o front degrada com **fallback silencioso** (gênero curado).
+
 ### 30/05/2026
 
 - **Auth migra para arquitetura BFF** (supersede a parte de auth de 24/05 e o cenário SPA cookie-no-Nest, descartado). Browser fala só com o Next; Next↔Nest server-to-server. JWT em **cookie `session` HttpOnly first-party no Next** + **Bearer interno** + **chave interna `X-Internal-Key`** (Caminho A, guard global). Dissolve a escolha de CORS cross-site. **Rate-limit no Nest** via `X-Client-IP` confiável pelo secret. **Logout no BFF** (sem endpoint no Nest, sem blocklist — stretch). **RBAC fora** (só ownership por `userId`); **telemetria stretch**; **Helmet** com CSP no Next. Motivo: upgrade de segurança (XSS-exfil mitigado) + conserto da inconsistência §10 (já era BFF) × §6/§8 (estilo SPA) + alinhamento ao que o front faria. Origem: review do Eduardo na issue #8 + Proposta Técnica. Detalhe em §8.1.
@@ -564,7 +572,7 @@ Capturas vão em `docs/telas/` ao longo do desenvolvimento.
 - **Fluxos de email fora do MVP:** confirmação de email e "esqueci minha senha" ficam em §5.3. Edição de perfil e deleção de conta pelo próprio usuário também fora.
 - **Detalhes de auth:** logout só client-side; rate limit no login 5/15min por IP; validação de email via regex simples (sem MX lookup); senha mínima 8 caracteres sem complexidade obrigatória (NIST SP 800-63B). *(Logout/rate-limit reconfigurados pelo BFF em 30/05; senha mín. 8 mantida.)*
 - **`tmdbType` vira enum Prisma** (`MOVIE | TV`); tradução para `"movie"`/`"tv"` no service.
-- **Validação do nome do User:** trim + 2-60 caracteres + letras (acentos OK) / números / espaço / hífen / apóstrofe; sem unicidade.
+- **Validação do nome do User:** trim + 3-50 caracteres + letras (acentos OK) / números / espaço / hífen / apóstrofe; sem unicidade.
 - **Busca mistura filme e série** (`/search/multi` filtrando pessoa) com badge no card; **paginação via botão "Carregar mais"** (20 por página TMDB, acumula).
 - **Filtros por gênero só na home, single-select, gêneros vindos da TMDB** (`/genre/movie/list` + `/genre/tv/list` em PT-BR, cache permanente). Chips com "Todos" como default. Não atuam em busca por texto no MVP.
 - **Tema:** default segue o sistema via CSS `prefers-color-scheme`; fallback light; toggle sol/lua no header; preferência persistida em localStorage.
