@@ -1,4 +1,4 @@
-FROM node:20-alpine AS builder
+FROM node:20-alpine AS deps
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci
@@ -6,6 +6,10 @@ RUN npm ci
 COPY prisma ./prisma/
 RUN npx prisma generate
 
+FROM deps AS development
+COPY . .
+
+FROM deps AS builder
 COPY . .
 RUN npm run build
 RUN npm prune --omit=dev

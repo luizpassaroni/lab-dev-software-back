@@ -46,6 +46,15 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
   },
+  "overrides": {
+    "js-yaml": "4.2.0",
+    "@nestjs/platform-express": {
+      "multer": "2.2.0"
+    },
+    "@prisma/dev": {
+      "@hono/node-server": "1.19.14"
+    }
+  },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
     "@eslint/js": "^9.18.0",

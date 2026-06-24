@@ -153,6 +153,52 @@ Fluxo de producao:
 4. `docker compose up -d --force-recreate` recria os containers.
 5. O workflow executa `npx prisma migrate deploy` dentro do container da API.
 
+### HTTPS
+
+A API publica o dominio `api-uva.eduoncode.com` por meio do Caddy definido no `docker-compose.prod.yml`. O registro DNS A aponta para o IP publico estatico da VM. O Caddy:
+
+- encaminha as requisicoes para o servico `api:3000`;
+- emite e renova automaticamente o certificado TLS pela Let's Encrypt;
+- redireciona requisicoes HTTP para HTTPS;
+- persiste certificados e configuracao nos volumes `caddy_data` e `caddy_config`.
+
+As portas `80` e `443` precisam permanecer liberadas no NSG. A porta `80` tambem e usada pelo desafio HTTP-01 durante a emissao ou renovacao do certificado.
+
+Verificacao publica:
+
+```bash
+# Deve responder 200 sem usar -k.
+curl -I https://api-uva.eduoncode.com/health
+
+# Deve redirecionar para HTTPS.
+curl -I http://api-uva.eduoncode.com/health
+```
+
+### Checklist pos-deploy
+
+Na VM, em `~/app`, valide os containers e as migrations:
+
+```bash
+docker compose ps
+docker compose exec -T api npx prisma migrate status
+```
+
+Para confirmar as variaveis obrigatorias sem imprimir os valores:
+
+```bash
+docker compose exec -T api sh -lc '
+for name in DATABASE_URL JWT_SECRET INTERNAL_API_KEY TMDB_API_TOKEN; do
+  eval value=\$$name
+  if [ -n "$value" ]; then
+    echo "$name=present"
+  else
+    echo "$name=missing"
+  fi
+done'
+```
+
+Depois de cada gate `develop` para `main`, o pipeline deve ficar verde e o fluxo publicado deve validar cadastro, login, sessao, busca, ficha e os recursos de historico disponiveis. O custo do resource group `rg-faculdade-prod` deve ser acompanhado no Azure Cost Management durante a sprint.
+
 Variaveis e secrets de producao:
 
 | Nome | Origem em producao | Uso |
