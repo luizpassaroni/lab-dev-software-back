@@ -132,27 +132,26 @@ export class TitlesService {
     return genres;
   }
 
-  async discover(genre: number, page: number): Promise<SearchResponseDto> {
-    const key = `discover:${genre}:${page}`;
+  async discover(
+    genre: number | undefined,
+    page: number,
+  ): Promise<SearchResponseDto> {
+    const key = `discover:${genre ?? 'trending'}:${page}`;
     const cached = await this.cache.get<SearchResponseDto>(key);
     if (cached) return cached;
 
+    const params: Record<string, string | number | boolean> =
+      genre === undefined ? { page } : { with_genres: genre, page };
     let movies: TmdbDiscoverResponse;
     let tv: TmdbDiscoverResponse;
     try {
       [movies, tv] = await Promise.all([
-        this.tmdb.get<TmdbDiscoverResponse>('/discover/movie', {
-          with_genres: genre,
-          page,
-        }),
-        this.tmdb.get<TmdbDiscoverResponse>('/discover/tv', {
-          with_genres: genre,
-          page,
-        }),
+        this.tmdb.get<TmdbDiscoverResponse>('/discover/movie', params),
+        this.tmdb.get<TmdbDiscoverResponse>('/discover/tv', params),
       ]);
     } catch (err) {
       this.logger.error(
-        `[tmdb] discover_failed genre=${genre} page=${page}`,
+        `[tmdb] discover_failed genre=${genre ?? 'trending'} page=${page}`,
         err instanceof Error ? err.stack : String(err),
       );
       throw new BadGatewayException(

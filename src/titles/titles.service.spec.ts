@@ -226,6 +226,44 @@ describe('TitlesService', () => {
       );
     });
 
+    it('sem gênero busca populares de filmes e séries sem with_genres', async () => {
+      mockDiscoverEndpoints();
+
+      const result = await service.discover(undefined, 2);
+
+      expect(result.results).toHaveLength(2);
+      expect(mockTmdb.get).toHaveBeenCalledWith('/discover/movie', {
+        page: 2,
+      });
+      expect(mockTmdb.get).toHaveBeenCalledWith('/discover/tv', {
+        page: 2,
+      });
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'discover:trending:2',
+        result,
+        3_600_000,
+      );
+    });
+
+    it('cache separa populares do discover por gênero', async () => {
+      mockDiscoverEndpoints();
+
+      await service.discover(undefined, 2);
+      await service.discover(28, 2);
+
+      expect(mockTmdb.get).toHaveBeenCalledTimes(4);
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'discover:trending:2',
+        expect.anything(),
+        3_600_000,
+      );
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'discover:28:2',
+        expect.anything(),
+        3_600_000,
+      );
+    });
+
     it('hasMore é false quando ambas as fontes chegaram ao fim', async () => {
       mockTmdb.get.mockResolvedValue({
         ...movies,
