@@ -8,6 +8,8 @@ describe('FavoriteService', () => {
 
   const mockPrismaService = {
     favorite: { upsert: jest.fn(), deleteMany: jest.fn() },
+    rating: { upsert: jest.fn(), deleteMany: jest.fn() },
+    watched: { upsert: jest.fn(), deleteMany: jest.fn() },
   };
 
   beforeEach(async () => {
@@ -61,6 +63,31 @@ describe('FavoriteService', () => {
         expect.objectContaining({ update: {} }),
       );
     });
+
+    it('ownership: favorita apenas para o userId recebido sem tocar rating/watched', async () => {
+      mockPrismaService.favorite.upsert.mockResolvedValue({
+        id: 1,
+        userId: 88,
+        tmdbId: 872585,
+        tmdbType: 'MOVIE',
+      });
+
+      await service.add(88, TitleType.MOVIE, 872585);
+
+      expect(mockPrismaService.favorite.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId_tmdbId_tmdbType: {
+              userId: 88,
+              tmdbId: 872585,
+              tmdbType: 'MOVIE',
+            },
+          },
+        }),
+      );
+      expect(mockPrismaService.rating.upsert).not.toHaveBeenCalled();
+      expect(mockPrismaService.watched.upsert).not.toHaveBeenCalled();
+    });
   });
 
   describe('remove', () => {
@@ -80,6 +107,18 @@ describe('FavoriteService', () => {
       await expect(
         service.remove(1, TitleType.MOVIE, 999),
       ).resolves.toBeUndefined();
+    });
+
+    it('ownership: desfavorita apenas para o userId recebido sem tocar rating/watched', async () => {
+      mockPrismaService.favorite.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.remove(88, TitleType.TV, 1396);
+
+      expect(mockPrismaService.favorite.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 88, tmdbId: 1396, tmdbType: 'TV' },
+      });
+      expect(mockPrismaService.rating.deleteMany).not.toHaveBeenCalled();
+      expect(mockPrismaService.watched.deleteMany).not.toHaveBeenCalled();
     });
   });
 });

@@ -99,6 +99,36 @@ describe('RatingService', () => {
         }),
       );
     });
+
+    it('ownership: usa o userId recebido nas queries de rating e watched', async () => {
+      tx.rating.upsert.mockResolvedValue({ score: 10 });
+      tx.watched.upsert.mockResolvedValue({ origem: 'auto' });
+
+      await service.set(99, TitleType.MOVIE, 872585, 10);
+
+      expect(tx.rating.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId_tmdbId_tmdbType: {
+              userId: 99,
+              tmdbId: 872585,
+              tmdbType: 'MOVIE',
+            },
+          },
+        }),
+      );
+      expect(tx.watched.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId_tmdbId_tmdbType: {
+              userId: 99,
+              tmdbId: 872585,
+              tmdbType: 'MOVIE',
+            },
+          },
+        }),
+      );
+    });
   });
 
   describe('remove', () => {
@@ -123,6 +153,20 @@ describe('RatingService', () => {
       await expect(
         service.remove(1, TitleType.MOVIE, 999),
       ).resolves.toBeUndefined();
+    });
+
+    it('ownership: remove avaliação e visto-auto apenas do userId recebido', async () => {
+      tx.rating.deleteMany.mockResolvedValue({ count: 1 });
+      tx.watched.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.remove(42, TitleType.TV, 1396);
+
+      expect(tx.rating.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 42, tmdbId: 1396, tmdbType: 'TV' },
+      });
+      expect(tx.watched.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 42, tmdbId: 1396, tmdbType: 'TV', origem: 'auto' },
+      });
     });
   });
 });

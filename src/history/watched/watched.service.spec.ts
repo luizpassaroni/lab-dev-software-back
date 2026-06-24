@@ -65,6 +65,24 @@ describe('WatchedService', () => {
       );
       expect(res.watched.origem).toBe('manual');
     });
+
+    it('ownership: marca visto apenas para o userId recebido', async () => {
+      mockPrismaService.watched.upsert.mockResolvedValue({ origem: 'manual' });
+
+      await service.mark(42, TitleType.TV, 1396);
+
+      expect(mockPrismaService.watched.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId_tmdbId_tmdbType: {
+              userId: 42,
+              tmdbId: 1396,
+              tmdbType: 'TV',
+            },
+          },
+        }),
+      );
+    });
   });
 
   describe('unmark', () => {
@@ -100,6 +118,26 @@ describe('WatchedService', () => {
       await expect(
         service.unmark(1, TitleType.MOVIE, 999),
       ).resolves.toBeUndefined();
+    });
+
+    it('ownership: consulta rating e remove watched pelo userId recebido', async () => {
+      tx.rating.findUnique.mockResolvedValue(null);
+      tx.watched.deleteMany.mockResolvedValue({ count: 1 });
+
+      await service.unmark(42, TitleType.TV, 1396);
+
+      expect(tx.rating.findUnique).toHaveBeenCalledWith({
+        where: {
+          userId_tmdbId_tmdbType: {
+            userId: 42,
+            tmdbId: 1396,
+            tmdbType: 'TV',
+          },
+        },
+      });
+      expect(tx.watched.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 42, tmdbId: 1396, tmdbType: 'TV' },
+      });
     });
   });
 });
