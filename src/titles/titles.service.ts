@@ -137,7 +137,8 @@ export class TitlesService {
     const cached = await this.cache.get<SearchResponseDto>(key);
     if (cached) return cached;
 
-    const params = genre === undefined ? { page } : { with_genres: genre, page };
+    const params: Record<string, string | number | boolean> =
+      genre === undefined ? { page } : { with_genres: genre, page };
     let movies: TmdbDiscoverResponse;
     let tv: TmdbDiscoverResponse;
     try {
