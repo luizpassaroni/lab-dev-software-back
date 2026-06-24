@@ -4,7 +4,6 @@ import { DiscoverQueryDto } from './discover-query.dto';
 
 describe('DiscoverQueryDto', () => {
   it.each([
-    [{}, 'genre ausente'],
     [{ genre: 'ação' }, 'genre não inteiro'],
     [{ genre: '28.5' }, 'genre decimal'],
     [{ genre: '28', page: '0' }, 'page menor que 1'],
@@ -19,5 +18,13 @@ describe('DiscoverQueryDto', () => {
 
     await expect(validate(dto)).resolves.toHaveLength(0);
     expect(dto).toMatchObject({ genre: 28, page: 1 });
+  });
+
+  it('aceita genre ausente e aplica page 1 por padrão', async () => {
+    const dto = plainToInstance(DiscoverQueryDto, {});
+
+    await expect(validate(dto)).resolves.toHaveLength(0);
+    expect(dto).toMatchObject({ page: 1 });
+    expect(dto.genre).toBeUndefined();
   });
 });

@@ -1,12 +1,13 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, Min } from 'class-validator';
+import { IsInt, IsOptional, Min } from 'class-validator';
 
 export class DiscoverQueryDto {
-  @ApiProperty({ example: 28, description: 'ID do gênero na TMDB' })
+  @ApiPropertyOptional({ example: 28, description: 'ID do gênero na TMDB' })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  genre!: number;
+  genre?: number;
 
   @ApiPropertyOptional({ example: 1, minimum: 1, default: 1 })
   @Type(() => Number)
