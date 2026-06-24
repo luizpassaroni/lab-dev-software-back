@@ -5,6 +5,8 @@ import {
   ParseEnumPipe,
   ParseIntPipe,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
 import { TitlesService } from './titles.service';
 import { SearchQueryDto } from './dto/search-query.dto';
@@ -20,7 +22,14 @@ import {
 } from '@nestjs/swagger';
 import { SearchResponseDto } from './dto/search-response.dto';
 import { TitleDetailDto } from './dto/title-detail.dto';
+import { OptionalJwtAuthGuard } from '../auth/guards/optional-jwt.guard';
 import { DiscoverQueryDto } from './dto/discover-query.dto';
+
+type RequestWithOptionalUser = {
+  user?: {
+    userId?: number;
+  };
+};
 
 @ApiTags('Titles')
 @ApiSecurity('internal-key')
@@ -49,10 +58,12 @@ export class TitlesController {
   @ApiParam({ name: 'type', enum: TitleType })
   @ApiParam({ name: 'id', type: Number, example: 872585 })
   @ApiOkResponse({ type: TitleDetailDto })
+  @UseGuards(OptionalJwtAuthGuard)
   getDetail(
     @Param('type', new ParseEnumPipe(TitleType)) type: TitleType,
     @Param('id', ParseIntPipe) id: number,
+    @Req() req: RequestWithOptionalUser,
   ): Promise<TitleDetailDto> {
-    return this.titlesService.getDetail(type, id);
+    return this.titlesService.getDetail(type, id, req.user?.userId);
   }
 }
