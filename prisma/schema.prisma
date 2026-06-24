@@ -34,6 +34,7 @@ model Watched {
   userId    Int
   tmdbId    Int
   tmdbType  String
+  origem    String   @default("manual")
   watchedAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id])
 

@@ -1,0 +1,1 @@
+ALTER TABLE "Watched" ADD COLUMN "origem" TEXT NOT NULL DEFAULT 'manual';
