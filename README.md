@@ -1,15 +1,36 @@
-# Plot Twist — Back
+# Plot Twist — Guia de Streaming (back + front)
 
-API do **Plot Twist**, um guia de streaming: o usuário busca um filme ou série e
+> **README de entrada do projeto — "do zero por terceiro" (issue #80 / META-4).**
+> Este arquivo mora no repo do back e documenta o setup completo dos **dois**
+> repositórios: o **backend** (`lab-dev-software-back`, este repo) e o
+> **frontend/BFF** (`lab-dev-software-front`). Seguindo-o num ambiente limpo,
+> cada app sobe sem passos faltando.
+
+O **Plot Twist** é um guia de streaming: o usuário busca um filme ou série e
 descobre **onde assistir no Brasil**, com sinopse, elenco, nota da TMDB e os
 provedores disponíveis. Usuários autenticados podem **avaliar (1–10)**, marcar
 como **visto** e **favoritar** títulos.
 
-Este serviço é o **backend (NestJS)**. Ele fica atrás do BFF (o Next, repo
-[`lab-dev-software-front`](https://github.com/luizpassaroni/lab-dev-software-front)):
-o navegador fala **só** com o Next, e o Next fala com esta API
-server-to-server. Ver `docs/PRD.md` (§8.1), `CONTEXT.md` e
-`docs/sprint-1-plan.md`.
+Arquitetura **BFF**: o navegador fala **só** com o Next (front, same-origin
+`/api/*`); o Next fala com esta API Nest server-to-server, injetando a chave
+interna. Ver `docs/PRD.md` (§8.1), `CONTEXT.md` e `docs/sprint-1-plan.md`.
+
+```
+[Navegador] ──same-origin──▶ [Next.js / BFF (Vercel)] ──server-to-server──▶ [Nest API (Azure VM)] ──▶ [TMDB]
+   cookie `session` HttpOnly        X-Internal-Key + Bearer (protegidas)         Postgres
+```
+
+| Repositório | Papel | Stack | No ar |
+|---|---|---|---|
+| [`lab-dev-software-back`](https://github.com/luizpassaroni/lab-dev-software-back) (este repo) | API + alvo do BFF | NestJS 11 · Prisma 7 · PostgreSQL 18 | <https://api-uva.eduoncode.com> |
+| [`lab-dev-software-front`](https://github.com/luizpassaroni/lab-dev-software-front) | Front-end + BFF | Next.js 16 · React 19 · pnpm | _a definir_ |
+
+---
+
+# Parte 1 — Backend (`lab-dev-software-back`, este repositório)
+
+Serviço **backend (NestJS)**, atrás do BFF. O navegador nunca chama esta API
+diretamente — quem fala com ela é o Next, server-to-server.
 
 ## Stack
 
@@ -143,7 +164,8 @@ Postgres ficar pronto, roda `prisma migrate deploy` e inicia em modo watch.
 (TLS automático nas portas 80/443) + Postgres com volume persistente. Exige as
 variáveis `POSTGRES_PASSWORD`, `JWT_SECRET`, `INTERNAL_API_KEY` e
 `TMDB_API_TOKEN` no ambiente. A infra (Azure VM, região Brazil South) está
-descrita em `infra/main.bicep`.
+descrita em `infra/main.bicep`; o deploy é automatizado em
+`.github/workflows/deploy.yml` (pipeline estrita à `main`).
 
 ## Endpoints principais
 
@@ -163,14 +185,7 @@ descrita em `infra/main.bicep`.
 Sobre **logout**: não há endpoint server-side — a sessão é descartada no BFF
 (remoção do cookie). Ver `CONTEXT.md` e a issue de contrato de logout.
 
-## URL no ar
-
-<!-- TODO(META-4 / #80): preencher com a URL pública da API após o deploy.
-     Ex.: https://<dominio-ou-ip>/health  deve responder {"status":"ok"}. -->
-
-- **API:** _a definir_ — `GET /health` deve responder `{"status":"ok"}`.
-
-## Estrutura do projeto
+## Estrutura do back
 
 ```
 src/
@@ -186,7 +201,130 @@ infra/            # main.bicep (Azure)
 docs/             # PRD, contratos de API, planos de sprint, issues
 ```
 
-## Documentação
+---
+
+# Parte 2 — Frontend (`lab-dev-software-front`)
+
+Front-end **e BFF** do Plot Twist. O navegador fala **só** com o Next
+(same-origin, `/api/*`); o Next fala com a API Nest (Parte 1) server-to-server,
+injetando a chave interna. O token de sessão vive num cookie `HttpOnly` — o JS
+do browser nunca o lê.
+
+## Stack
+
+- **Node.js 20** + **TypeScript 5**
+- **Next.js 16** (App Router, React Compiler) + **React 19**
+- **pnpm 10** (gerenciador de pacotes)
+- **Tailwind CSS 4** + **Radix UI** (componentes estilo shadcn/ui)
+- **TanStack Query** (data fetching) + **TanStack Form** & **Zod** (validação)
+- **Biome** (lint + format) e **Vitest** + Testing Library (testes)
+
+## Pré-requisitos
+
+- **Node.js 20+** (o CI roda em Node 20)
+- **pnpm 10+** — instale com `npm i -g pnpm@10` ou `corepack enable`
+
+## Setup do zero
+
+```bash
+# 1. Clonar e entrar no projeto
+git clone https://github.com/luizpassaroni/lab-dev-software-front.git
+cd lab-dev-software-front
+
+# 2. Instalar dependências
+pnpm install
+
+# 3. Configurar variáveis de ambiente
+cp .env.local.example .env.local
+#   Para usar a API real, preencha API_INTERNAL_URL e INTERNAL_API_KEY.
+#   Sem elas, o BFF responde com mocks de dev (dá pra rodar o front isolado).
+
+# 4. Subir em modo desenvolvimento
+pnpm dev
+```
+
+A aplicação sobe em **http://localhost:3001**.
+
+> 💡 **Funciona sem backend.** Enquanto `API_INTERNAL_URL` não estiver definida,
+> os route handlers `/api/*` respondem com **mocks de dev** que seguem o mesmo
+> contrato da API — útil para desenvolver o front isolado.
+
+## Variáveis de ambiente
+
+Copie `.env.local.example` para `.env.local`. As variáveis do BFF são
+**server-only** (sem prefixo `NEXT_PUBLIC_`), então o segredo nunca chega ao
+browser:
+
+| Variável | Obrigatória | Default | Descrição |
+|---|---|---|---|
+| `API_INTERNAL_URL` | para API real | — (mock) | URL interna da API Nest, usada **só server-side** pelos route handlers `/api/*`. Local: `http://localhost:3000`. Ausente → BFF usa mocks de dev. |
+| `INTERNAL_API_KEY` | para API real | — | Segredo compartilhado com o back; vai no header `X-Internal-Key` em toda chamada Next → Nest. **Use o mesmo valor dos dois lados.** |
+
+## Comandos
+
+```bash
+pnpm dev        # desenvolvimento — http://localhost:3001
+pnpm build      # build de produção
+pnpm start      # serve o build de produção
+pnpm test       # testes (Vitest, run único)
+pnpm lint       # Biome (checagem)
+pnpm format     # Biome (corrige)
+```
+
+No MVP o front tem apenas **testes simbólicos** (2-3 testes de componente),
+conforme PRD §8.3. No CI (`.github/workflows/ci.yml`), `pnpm lint`, `pnpm test`
+e `pnpm build` rodam a cada PR.
+
+## Camada de dados (BFF)
+
+Cada chamada do browser passa por um route handler `/api/*` (`src/app/api/...`),
+que lê o cookie `session`, injeta os headers internos (`X-Internal-Key`,
+`Authorization: Bearer`, `X-Client-IP`) e chama o Nest. Enquanto o backend não
+está configurado (`API_INTERNAL_URL` ausente), os handlers caem em **mocks de
+dev** com o mesmo contrato — trocar para o backend real é só preencher o
+`.env.local`, sem mudar código. Exemplo:
+`src/modules/auth/queries/register.ts`.
+
+## Estrutura do front
+
+```
+src/
+├── app/                 # App Router (rotas + BFF)
+│   ├── (auth)/          # login e cadastro
+│   ├── api/             # route handlers /api/* (BFF → Nest)
+│   ├── busca/           # resultados de busca
+│   ├── titulo/          # ficha do título
+│   ├── perfil/          # perfil do usuário
+│   ├── layout.tsx       # layout global (header, tema)
+│   └── page.tsx         # home (hero + busca + chips de gênero)
+├── modules/             # lógica por domínio: auth, titles, profile (queries + mocks)
+├── shared/              # componentes e utilitários compartilhados
+└── test/                # setup de testes
+```
+
+---
+
+# Parte 3 — Rodar o stack completo local (back + front)
+
+1. **Suba o back** (Parte 1) na porta `3000` — não esqueça o `npx prisma generate`.
+2. No front, no `.env.local`, aponte para o back local e use o **mesmo** segredo:
+   ```env
+   API_INTERNAL_URL=http://localhost:3000
+   INTERNAL_API_KEY=<o mesmo valor do .env do back>
+   ```
+3. **Suba o front** (`pnpm dev`) na porta `3001` e abra <http://localhost:3001>.
+
+Fluxo de ponta a ponta: criar conta → login → buscar um título → abrir a ficha →
+ver "onde assistir" no Brasil.
+
+---
+
+# URL no ar
+
+- **Front (Vercel):** _a definir_
+- **API (Azure VM + Caddy/HTTPS):** <https://api-uva.eduoncode.com> — `GET /health` responde `{"status":"ok"}`.
+
+# Documentação
 
 Ordem de leitura recomendada do projeto:
 
