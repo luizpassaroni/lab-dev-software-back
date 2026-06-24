@@ -1,16 +1,10 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Body,
-  Patch,
-  Param,
-  Delete,
-} from '@nestjs/common';
+import { Controller, Get, Body, Patch, Param, Delete } from '@nestjs/common';
 import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { ApiSecurity, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Users')
+@ApiSecurity('internal-key')
 @Controller('user')
 export class UserController {
   constructor(private readonly userService: UserService) {}

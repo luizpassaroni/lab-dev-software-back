@@ -29,6 +29,7 @@
     "@nestjs/mapped-types": "*",
     "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/swagger": "^11.4.4",
     "@nestjs/throttler": "^6.5.0",
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
@@ -38,10 +39,21 @@
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "dotenv": "^17.4.2",
+    "nestjs-pino": "^4.6.1",
     "passport-jwt": "^4.0.1",
     "pg": "^8.21.0",
+    "pino-http": "^11.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1"
+  },
+  "overrides": {
+    "js-yaml": "4.2.0",
+    "@nestjs/platform-express": {
+      "multer": "2.2.0"
+    },
+    "@prisma/dev": {
+      "@hono/node-server": "1.19.14"
+    }
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",
@@ -59,6 +71,7 @@
     "eslint-plugin-prettier": "^5.2.2",
     "globals": "^17.0.0",
     "jest": "^30.0.0",
+    "pino-pretty": "^13.1.3",
     "prettier": "^3.4.2",
     "prisma": "^7.8.0",
     "source-map-support": "^0.5.21",

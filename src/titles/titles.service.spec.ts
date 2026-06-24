@@ -4,10 +4,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TitlesService } from './titles.service';
 import { TmdbHttpService } from './tmdb-http.service';
 import { TitleType } from './dto/title-type.enum';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('TitlesService', () => {
   let service: TitlesService;
   const mockTmdb = { get: jest.fn() };
+  const mockPrisma = {
+    rating: { findUnique: jest.fn() },
+    watched: { findUnique: jest.fn() },
+    favorite: { findUnique: jest.fn() },
+  };
   const store = new Map<string, unknown>();
   const mockCache = {
     get: jest.fn((k: string) => Promise.resolve(store.get(k))),
@@ -43,11 +49,15 @@ describe('TitlesService', () => {
   beforeEach(async () => {
     store.clear();
     mockTmdb.get.mockResolvedValue(fixture);
+    mockPrisma.rating.findUnique.mockResolvedValue(null);
+    mockPrisma.watched.findUnique.mockResolvedValue(null);
+    mockPrisma.favorite.findUnique.mockResolvedValue(null);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TitlesService,
         { provide: TmdbHttpService, useValue: mockTmdb },
         { provide: CACHE_MANAGER, useValue: mockCache },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
     service = module.get<TitlesService>(TitlesService);
@@ -86,6 +96,206 @@ describe('TitlesService', () => {
     await expect(service.search('x', 1)).rejects.toBeInstanceOf(
       BadGatewayException,
     );
+  });
+
+  describe('getGenres', () => {
+    const movieGenres = {
+      genres: [
+        { id: 28, name: 'Ação' },
+        { id: 35, name: 'Comédia' },
+      ],
+    };
+    const tvGenres = {
+      genres: [
+        { id: 35, name: 'Comédia' },
+        { id: 18, name: 'Drama' },
+      ],
+    };
+
+    it('combina, deduplica por id, traduz o campo e ordena por nome', async () => {
+      mockTmdb.get.mockImplementation((path: string) =>
+        Promise.resolve(path.includes('/movie/') ? movieGenres : tvGenres),
+      );
+
+      const result = await service.getGenres();
+
+      expect(result).toEqual([
+        { id: 28, nome: 'Ação' },
+        { id: 35, nome: 'Comédia' },
+        { id: 18, nome: 'Drama' },
+      ]);
+      expect(mockTmdb.get).toHaveBeenCalledWith('/genre/movie/list');
+      expect(mockTmdb.get).toHaveBeenCalledWith('/genre/tv/list');
+      expect(mockCache.set).toHaveBeenCalledWith('genres:all', result);
+    });
+
+    it('cache hit: 2ª chamada não rebate na TMDB', async () => {
+      mockTmdb.get.mockImplementation((path: string) =>
+        Promise.resolve(path.includes('/movie/') ? movieGenres : tvGenres),
+      );
+
+      await service.getGenres();
+      await service.getGenres();
+
+      expect(mockTmdb.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('erro da TMDB → 502 tratado', async () => {
+      mockTmdb.get.mockRejectedValueOnce(new Error('network'));
+
+      await expect(service.getGenres()).rejects.toBeInstanceOf(
+        BadGatewayException,
+      );
+    });
+  });
+
+  describe('discover', () => {
+    const movies = {
+      page: 2,
+      total_pages: 5,
+      total_results: 1,
+      results: [
+        {
+          id: 1,
+          title: 'Filme de ação',
+          release_date: '2024-01-10',
+          poster_path: '/movie.jpg',
+        },
+      ],
+    };
+    const tv = {
+      page: 2,
+      total_pages: 3,
+      total_results: 1,
+      results: [
+        {
+          id: 2,
+          name: 'Série de ação',
+          first_air_date: '2020-05-20',
+          poster_path: null,
+        },
+      ],
+    };
+
+    const mockDiscoverEndpoints = () => {
+      mockTmdb.get.mockImplementation((path: string) =>
+        Promise.resolve(path.endsWith('/movie') ? movies : tv),
+      );
+    };
+
+    it('combina filmes e séries no shape da busca e usa a maior paginação', async () => {
+      mockDiscoverEndpoints();
+
+      const result = await service.discover(28, 2);
+
+      expect(result).toMatchObject({
+        page: 2,
+        totalPages: 5,
+        hasMore: true,
+        results: [
+          {
+            tmdbId: 1,
+            tmdbType: 'MOVIE',
+            title: 'Filme de ação',
+            year: 2024,
+            posterUrl: 'https://image.tmdb.org/t/p/w500/movie.jpg',
+            badge: 'Filme',
+          },
+          {
+            tmdbId: 2,
+            tmdbType: 'TV',
+            title: 'Série de ação',
+            year: 2020,
+            posterUrl: null,
+            badge: 'Série',
+          },
+        ],
+      });
+      expect(mockTmdb.get).toHaveBeenCalledWith('/discover/movie', {
+        with_genres: 28,
+        page: 2,
+      });
+      expect(mockTmdb.get).toHaveBeenCalledWith('/discover/tv', {
+        with_genres: 28,
+        page: 2,
+      });
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'discover:28:2',
+        result,
+        3_600_000,
+      );
+    });
+
+    it('sem gênero busca populares de filmes e séries sem with_genres', async () => {
+      mockDiscoverEndpoints();
+
+      const result = await service.discover(undefined, 2);
+
+      expect(result.results).toHaveLength(2);
+      expect(mockTmdb.get).toHaveBeenCalledWith('/discover/movie', {
+        page: 2,
+      });
+      expect(mockTmdb.get).toHaveBeenCalledWith('/discover/tv', {
+        page: 2,
+      });
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'discover:trending:2',
+        result,
+        3_600_000,
+      );
+    });
+
+    it('cache separa populares do discover por gênero', async () => {
+      mockDiscoverEndpoints();
+
+      await service.discover(undefined, 2);
+      await service.discover(28, 2);
+
+      expect(mockTmdb.get).toHaveBeenCalledTimes(4);
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'discover:trending:2',
+        expect.anything(),
+        3_600_000,
+      );
+      expect(mockCache.set).toHaveBeenCalledWith(
+        'discover:28:2',
+        expect.anything(),
+        3_600_000,
+      );
+    });
+
+    it('hasMore é false quando ambas as fontes chegaram ao fim', async () => {
+      mockTmdb.get.mockResolvedValue({
+        ...movies,
+        page: 5,
+        total_pages: 5,
+      });
+
+      const result = await service.discover(28, 5);
+
+      expect(result).toMatchObject({
+        page: 5,
+        totalPages: 5,
+        hasMore: false,
+      });
+    });
+
+    it('cache hit: 2ª chamada não rebate na TMDB', async () => {
+      mockDiscoverEndpoints();
+
+      await service.discover(28, 2);
+      await service.discover(28, 2);
+
+      expect(mockTmdb.get).toHaveBeenCalledTimes(2);
+    });
+
+    it('erro da TMDB → 502 tratado', async () => {
+      mockTmdb.get.mockRejectedValueOnce(new Error('network'));
+
+      await expect(service.discover(28, 1)).rejects.toBeInstanceOf(
+        BadGatewayException,
+      );
+    });
   });
 
   describe('getDetail', () => {
@@ -221,6 +431,77 @@ describe('TitlesService', () => {
         tmdbRating: 8.1,
         genres: ['Drama', 'História'],
       });
+    });
+
+    it('sem usuário autenticado não inclui userState nem consulta histórico', async () => {
+      mockEndpoints(movieDetails, providersBR);
+
+      const res = await service.getDetail(TitleType.MOVIE, 872585);
+
+      expect(res.userState).toBeUndefined();
+      expect(mockPrisma.rating.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.watched.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.favorite.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('com usuário autenticado inclui userState calculado por usuário', async () => {
+      mockEndpoints(movieDetails, providersBR);
+      mockPrisma.rating.findUnique.mockResolvedValue({ score: 8 });
+      mockPrisma.watched.findUnique.mockResolvedValue({ id: 10 });
+      mockPrisma.favorite.findUnique.mockResolvedValue(null);
+
+      const res = await service.getDetail(TitleType.MOVIE, 872585, 7);
+
+      expect(res.userState).toEqual({
+        rating: 8,
+        watched: true,
+        favorite: false,
+      });
+      const expectedWhere = {
+        userId_tmdbId_tmdbType: {
+          userId: 7,
+          tmdbId: 872585,
+          tmdbType: 'MOVIE',
+        },
+      };
+      expect(mockPrisma.rating.findUnique).toHaveBeenCalledWith({
+        where: expectedWhere,
+        select: { score: true },
+      });
+      expect(mockPrisma.watched.findUnique).toHaveBeenCalledWith({
+        where: expectedWhere,
+        select: { id: true },
+      });
+      expect(mockPrisma.favorite.findUnique).toHaveBeenCalledWith({
+        where: expectedWhere,
+        select: { id: true },
+      });
+    });
+
+    it('userState não entra no cache compartilhado da ficha', async () => {
+      mockEndpoints(movieDetails, providersBR);
+      mockPrisma.rating.findUnique.mockResolvedValueOnce({ score: 9 });
+      mockPrisma.watched.findUnique.mockResolvedValueOnce({ id: 10 });
+      mockPrisma.favorite.findUnique.mockResolvedValueOnce({ id: 11 });
+      mockPrisma.rating.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.watched.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.favorite.findUnique.mockResolvedValueOnce(null);
+
+      const first = await service.getDetail(TitleType.MOVIE, 872585, 7);
+      const second = await service.getDetail(TitleType.MOVIE, 872585, 8);
+
+      expect(first.userState).toEqual({
+        rating: 9,
+        watched: true,
+        favorite: true,
+      });
+      expect(second.userState).toEqual({
+        rating: null,
+        watched: false,
+        favorite: false,
+      });
+      expect(mockTmdb.get).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.rating.findUnique).toHaveBeenCalledTimes(2);
     });
 
     it('ficha de série: seasons preenchido e runtime null', async () => {
