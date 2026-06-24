@@ -8,6 +8,7 @@ import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
 import { CacheModule } from '@nestjs/cache-manager';
 import { TitlesModule } from './titles/titles.module';
+import { HistoryModule } from './history/history.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { UserModule } from './user/user.module';
 import { XClientIpThrottlerGuard } from './common/guards/x-client-ip.throttler-guard';
@@ -47,6 +48,7 @@ import { validate } from './env.validation';
     PrismaModule,
     TitlesModule,
     AuthModule,
+    HistoryModule,
     UserModule,
   ],
   controllers: [AppController],

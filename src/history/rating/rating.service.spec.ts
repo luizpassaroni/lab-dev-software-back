@@ -1,125 +1,172 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PrismaService } from '../../prisma/prisma.service';
 import { RatingService } from './rating.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { TitleType } from '../../titles/dto/title-type.enum';
 
 describe('RatingService', () => {
   let service: RatingService;
-  const prisma = {
-    rating: {
-      upsert: jest.fn(),
-      deleteMany: jest.fn(),
-    },
-    watched: {
-      findUnique: jest.fn(),
-      create: jest.fn(),
-      deleteMany: jest.fn(),
-    },
+
+  const tx = {
+    rating: { upsert: jest.fn(), deleteMany: jest.fn() },
+    watched: { upsert: jest.fn(), deleteMany: jest.fn() },
   };
-  const title = { tmdbId: 872585, tmdbType: 'MOVIE' as const };
+
+  const mockPrismaService = {
+    // Executa a callback da transação com o client transacional mockado.
+    $transaction: jest.fn((cb: (client: typeof tx) => unknown) => cb(tx)),
+  };
 
   beforeEach(async () => {
-    prisma.rating.upsert.mockResolvedValue({});
-    prisma.rating.deleteMany.mockResolvedValue({ count: 1 });
-    prisma.watched.findUnique.mockResolvedValue(null);
-    prisma.watched.create.mockResolvedValue({});
-    prisma.watched.deleteMany.mockResolvedValue({ count: 1 });
+    jest.clearAllMocks();
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RatingService,
-        { provide: PrismaService, useValue: prisma },
+        { provide: PrismaService, useValue: mockPrismaService },
       ],
     }).compile();
 
-    service = module.get(RatingService);
+    service = module.get<RatingService>(RatingService);
   });
 
-  afterEach(() => jest.clearAllMocks());
+  it('should be defined', () => {
+    expect(service).toBeDefined();
+  });
 
-  it('avaliar sem visto cria/atualiza rating e marca visto-auto', async () => {
-    await service.rate(7, title, 8);
+  describe('set', () => {
+    it('avalia sem visto prévio: upsert da nota + cria Watched origem=auto', async () => {
+      tx.rating.upsert.mockResolvedValue({ score: 8 });
+      tx.watched.upsert.mockResolvedValue({ origem: 'auto' });
 
-    expect(prisma.rating.upsert).toHaveBeenCalledWith({
-      where: {
-        userId_tmdbId_tmdbType: {
-          userId: 7,
+      const res = await service.set(1, TitleType.MOVIE, 872585, 8);
+
+      expect(tx.rating.upsert).toHaveBeenCalledWith({
+        where: {
+          userId_tmdbId_tmdbType: { userId: 1, tmdbId: 872585, tmdbType: 'MOVIE' },
+        },
+        update: { score: 8 },
+        create: { userId: 1, tmdbId: 872585, tmdbType: 'MOVIE', score: 8 },
+      });
+      expect(tx.watched.upsert).toHaveBeenCalledWith({
+        where: {
+          userId_tmdbId_tmdbType: { userId: 1, tmdbId: 872585, tmdbType: 'MOVIE' },
+        },
+        update: {},
+        create: {
+          userId: 1,
           tmdbId: 872585,
           tmdbType: 'MOVIE',
+          origem: 'auto',
         },
-      },
-      update: { score: 8 },
-      create: {
-        userId: 7,
-        tmdbId: 872585,
-        tmdbType: 'MOVIE',
-        score: 8,
-      },
+      });
+      expect(res).toEqual({ rating: { score: 8 }, watched: { origem: 'auto' } });
     });
-    expect(prisma.watched.create).toHaveBeenCalledWith({
-      data: {
-        userId: 7,
-        tmdbId: 872585,
-        tmdbType: 'MOVIE',
-        origem: 'auto',
-      },
+
+    it('trocar a nota: upsert atualiza a mesma linha (update), sem duplicar', async () => {
+      tx.rating.upsert.mockResolvedValue({ score: 6 });
+      tx.watched.upsert.mockResolvedValue({ origem: 'auto' });
+
+      await service.set(1, TitleType.MOVIE, 872585, 6);
+
+      expect(tx.rating.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ update: { score: 6 } }),
+      );
+    });
+
+    it('visto manual preexistente é preservado: update vazio e origem segue manual', async () => {
+      tx.rating.upsert.mockResolvedValue({ score: 9 });
+      tx.watched.upsert.mockResolvedValue({ origem: 'manual' });
+
+      const res = await service.set(1, TitleType.TV, 100, 9);
+
+      expect(tx.watched.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({ update: {} }),
+      );
+      expect(res.watched.origem).toBe('manual');
+    });
+
+    it('traduz TitleType.TV → tmdbType "TV"', async () => {
+      tx.rating.upsert.mockResolvedValue({ score: 5 });
+      tx.watched.upsert.mockResolvedValue({ origem: 'auto' });
+
+      await service.set(2, TitleType.TV, 100, 5);
+
+      expect(tx.rating.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId_tmdbId_tmdbType: { userId: 2, tmdbId: 100, tmdbType: 'TV' },
+          },
+        }),
+      );
+    });
+
+    it('ownership: usa o userId recebido nas queries de rating e watched', async () => {
+      tx.rating.upsert.mockResolvedValue({ score: 10 });
+      tx.watched.upsert.mockResolvedValue({ origem: 'auto' });
+
+      await service.set(99, TitleType.MOVIE, 872585, 10);
+
+      expect(tx.rating.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId_tmdbId_tmdbType: {
+              userId: 99,
+              tmdbId: 872585,
+              tmdbType: 'MOVIE',
+            },
+          },
+        }),
+      );
+      expect(tx.watched.upsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            userId_tmdbId_tmdbType: {
+              userId: 99,
+              tmdbId: 872585,
+              tmdbType: 'MOVIE',
+            },
+          },
+        }),
+      );
     });
   });
 
-  it('trocar nota atualiza rating sem criar outro watched', async () => {
-    prisma.watched.findUnique.mockResolvedValue({ id: 10 });
+  describe('remove', () => {
+    it('remove a avaliação e derruba apenas o visto auto', async () => {
+      tx.rating.deleteMany.mockResolvedValue({ count: 1 });
+      tx.watched.deleteMany.mockResolvedValue({ count: 1 });
 
-    await service.rate(7, title, 6);
+      await service.remove(1, TitleType.MOVIE, 872585);
 
-    expect(prisma.rating.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        update: { score: 6 },
-      }),
-    );
-    expect(prisma.watched.create).not.toHaveBeenCalled();
-  });
-
-  it('remover avaliação com visto-auto remove rating e watched', async () => {
-    prisma.watched.findUnique.mockResolvedValue({ origem: 'auto' });
-
-    await service.remove(7, title);
-
-    expect(prisma.rating.deleteMany).toHaveBeenCalledWith({
-      where: {
-        userId: 7,
-        tmdbId: 872585,
-        tmdbType: 'MOVIE',
-      },
+      expect(tx.rating.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 1, tmdbId: 872585, tmdbType: 'MOVIE' },
+      });
+      expect(tx.watched.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 1, tmdbId: 872585, tmdbType: 'MOVIE', origem: 'auto' },
+      });
     });
-    expect(prisma.watched.deleteMany).toHaveBeenCalledWith({
-      where: {
-        userId: 7,
-        tmdbId: 872585,
-        tmdbType: 'MOVIE',
-      },
+
+    it('idempotente: remover o que não existe não lança (count 0)', async () => {
+      tx.rating.deleteMany.mockResolvedValue({ count: 0 });
+      tx.watched.deleteMany.mockResolvedValue({ count: 0 });
+
+      await expect(
+        service.remove(1, TitleType.MOVIE, 999),
+      ).resolves.toBeUndefined();
     });
-  });
 
-  it('remover avaliação com visto-manual preserva watched', async () => {
-    prisma.watched.findUnique.mockResolvedValue({ origem: 'manual' });
+    it('ownership: remove avaliação e visto-auto apenas do userId recebido', async () => {
+      tx.rating.deleteMany.mockResolvedValue({ count: 1 });
+      tx.watched.deleteMany.mockResolvedValue({ count: 1 });
 
-    await service.remove(7, title);
+      await service.remove(42, TitleType.TV, 1396);
 
-    expect(prisma.rating.deleteMany).toHaveBeenCalled();
-    expect(prisma.watched.deleteMany).not.toHaveBeenCalled();
-  });
-
-  it('ownership usa o userId recebido nas queries', async () => {
-    await service.rate(99, title, 10);
-
-    expect(prisma.watched.findUnique).toHaveBeenCalledWith({
-      where: {
-        userId_tmdbId_tmdbType: {
-          userId: 99,
-          tmdbId: 872585,
-          tmdbType: 'MOVIE',
-        },
-      },
-      select: { id: true },
+      expect(tx.rating.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 42, tmdbId: 1396, tmdbType: 'TV' },
+      });
+      expect(tx.watched.deleteMany).toHaveBeenCalledWith({
+        where: { userId: 42, tmdbId: 1396, tmdbType: 'TV', origem: 'auto' },
+      });
     });
   });
 });

@@ -1,32 +1,33 @@
 import { Injectable } from '@nestjs/common';
+import { TmdbType } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
-import { HistoryTitleRef, historyWhere } from '../history.types';
+import { TitleType } from '../../titles/dto/title-type.enum';
 
 @Injectable()
 export class FavoriteService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async add(userId: number, title: HistoryTitleRef): Promise<void> {
-    const where = historyWhere(userId, title);
+  private toTmdbType(type: TitleType): TmdbType {
+    return type === TitleType.MOVIE ? TmdbType.MOVIE : TmdbType.TV;
+  }
+
+
+  async add(userId: number, type: TitleType, tmdbId: number): Promise<void> {
+    const tmdbType = this.toTmdbType(type);
 
     await this.prisma.favorite.upsert({
-      where,
+      where: { userId_tmdbId_tmdbType: { userId, tmdbId, tmdbType } },
       update: {},
-      create: {
-        userId,
-        tmdbId: title.tmdbId,
-        tmdbType: title.tmdbType,
-      },
+      create: { userId, tmdbId, tmdbType },
     });
   }
 
-  async remove(userId: number, title: HistoryTitleRef): Promise<void> {
+  
+  async remove(userId: number, type: TitleType, tmdbId: number): Promise<void> {
+    const tmdbType = this.toTmdbType(type);
+
     await this.prisma.favorite.deleteMany({
-      where: {
-        userId,
-        tmdbId: title.tmdbId,
-        tmdbType: title.tmdbType,
-      },
+      where: { userId, tmdbId, tmdbType },
     });
   }
 }
