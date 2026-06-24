@@ -4,10 +4,16 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TitlesService } from './titles.service';
 import { TmdbHttpService } from './tmdb-http.service';
 import { TitleType } from './dto/title-type.enum';
+import { PrismaService } from '../prisma/prisma.service';
 
 describe('TitlesService', () => {
   let service: TitlesService;
   const mockTmdb = { get: jest.fn() };
+  const mockPrisma = {
+    rating: { findUnique: jest.fn() },
+    watched: { findUnique: jest.fn() },
+    favorite: { findUnique: jest.fn() },
+  };
   const store = new Map<string, unknown>();
   const mockCache = {
     get: jest.fn((k: string) => Promise.resolve(store.get(k))),
@@ -43,11 +49,15 @@ describe('TitlesService', () => {
   beforeEach(async () => {
     store.clear();
     mockTmdb.get.mockResolvedValue(fixture);
+    mockPrisma.rating.findUnique.mockResolvedValue(null);
+    mockPrisma.watched.findUnique.mockResolvedValue(null);
+    mockPrisma.favorite.findUnique.mockResolvedValue(null);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TitlesService,
         { provide: TmdbHttpService, useValue: mockTmdb },
         { provide: CACHE_MANAGER, useValue: mockCache },
+        { provide: PrismaService, useValue: mockPrisma },
       ],
     }).compile();
     service = module.get<TitlesService>(TitlesService);
@@ -221,6 +231,77 @@ describe('TitlesService', () => {
         tmdbRating: 8.1,
         genres: ['Drama', 'História'],
       });
+    });
+
+    it('sem usuário autenticado não inclui userState nem consulta histórico', async () => {
+      mockEndpoints(movieDetails, providersBR);
+
+      const res = await service.getDetail(TitleType.MOVIE, 872585);
+
+      expect(res.userState).toBeUndefined();
+      expect(mockPrisma.rating.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.watched.findUnique).not.toHaveBeenCalled();
+      expect(mockPrisma.favorite.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('com usuário autenticado inclui userState calculado por usuário', async () => {
+      mockEndpoints(movieDetails, providersBR);
+      mockPrisma.rating.findUnique.mockResolvedValue({ score: 8 });
+      mockPrisma.watched.findUnique.mockResolvedValue({ id: 10 });
+      mockPrisma.favorite.findUnique.mockResolvedValue(null);
+
+      const res = await service.getDetail(TitleType.MOVIE, 872585, 7);
+
+      expect(res.userState).toEqual({
+        rating: 8,
+        watched: true,
+        favorite: false,
+      });
+      const expectedWhere = {
+        userId_tmdbId_tmdbType: {
+          userId: 7,
+          tmdbId: 872585,
+          tmdbType: 'MOVIE',
+        },
+      };
+      expect(mockPrisma.rating.findUnique).toHaveBeenCalledWith({
+        where: expectedWhere,
+        select: { score: true },
+      });
+      expect(mockPrisma.watched.findUnique).toHaveBeenCalledWith({
+        where: expectedWhere,
+        select: { id: true },
+      });
+      expect(mockPrisma.favorite.findUnique).toHaveBeenCalledWith({
+        where: expectedWhere,
+        select: { id: true },
+      });
+    });
+
+    it('userState não entra no cache compartilhado da ficha', async () => {
+      mockEndpoints(movieDetails, providersBR);
+      mockPrisma.rating.findUnique.mockResolvedValueOnce({ score: 9 });
+      mockPrisma.watched.findUnique.mockResolvedValueOnce({ id: 10 });
+      mockPrisma.favorite.findUnique.mockResolvedValueOnce({ id: 11 });
+      mockPrisma.rating.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.watched.findUnique.mockResolvedValueOnce(null);
+      mockPrisma.favorite.findUnique.mockResolvedValueOnce(null);
+
+      const first = await service.getDetail(TitleType.MOVIE, 872585, 7);
+      const second = await service.getDetail(TitleType.MOVIE, 872585, 8);
+
+      expect(first.userState).toEqual({
+        rating: 9,
+        watched: true,
+        favorite: true,
+      });
+      expect(second.userState).toEqual({
+        rating: null,
+        watched: false,
+        favorite: false,
+      });
+      expect(mockTmdb.get).toHaveBeenCalledTimes(2);
+      expect(mockPrisma.rating.findUnique).toHaveBeenCalledTimes(2);
     });
 
     it('ficha de série: seasons preenchido e runtime null', async () => {

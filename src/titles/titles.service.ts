@@ -14,8 +14,10 @@ import {
   ProviderDto,
   ProvidersDto,
   TitleDetailDto,
+  UserStateDto,
 } from './dto/title-detail.dto';
 import { TitleType } from './dto/title-type.enum';
+import { PrismaService } from '../prisma/prisma.service';
 import {
   TmdbMultiSearchResponse,
   TmdbMultiSearchResult,
@@ -44,6 +46,7 @@ export class TitlesService {
   constructor(
     private readonly tmdb: TmdbHttpService,
     @Inject(CACHE_MANAGER) private readonly cache: Cache,
+    private readonly prisma: PrismaService,
   ) {}
 
   async search(q: string, page: number): Promise<SearchResponseDto> {
@@ -98,10 +101,46 @@ export class TitlesService {
     });
   }
 
-  async getDetail(type: TitleType, id: number): Promise<TitleDetailDto> {
+  async getDetail(
+    type: TitleType,
+    id: number,
+    userId?: number,
+  ): Promise<TitleDetailDto> {
     const detail = await this.getDetailsPart(type, id);
     const providers = await this.getProvidersPart(type, id);
-    return new TitleDetailDto({ ...detail, providers });
+    const dto = new TitleDetailDto({ ...detail, providers });
+
+    if (userId !== undefined) {
+      dto.userState = await this.getUserState(userId, dto.tmdbId, dto.tmdbType);
+    }
+
+    return dto;
+  }
+
+  private async getUserState(
+    userId: number,
+    tmdbId: number,
+    tmdbType: 'MOVIE' | 'TV',
+  ): Promise<UserStateDto> {
+    const where = {
+      userId_tmdbId_tmdbType: {
+        userId,
+        tmdbId,
+        tmdbType,
+      },
+    };
+
+    const [rating, watched, favorite] = await Promise.all([
+      this.prisma.rating.findUnique({ where, select: { score: true } }),
+      this.prisma.watched.findUnique({ where, select: { id: true } }),
+      this.prisma.favorite.findUnique({ where, select: { id: true } }),
+    ]);
+
+    return new UserStateDto({
+      rating: rating?.score ?? null,
+      watched: watched !== null,
+      favorite: favorite !== null,
+    });
   }
 
   private async getDetailsPart(

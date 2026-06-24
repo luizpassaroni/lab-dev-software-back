@@ -1,5 +1,5 @@
 import { Expose, Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 export class CastMemberDto {
   @ApiProperty({ example: 'Cillian Murphy' })
@@ -50,6 +50,24 @@ export class ProvidersDto {
   buy!: ProviderDto[];
 
   constructor(partial: Partial<ProvidersDto>) {
+    Object.assign(this, partial);
+  }
+}
+
+export class UserStateDto {
+  @ApiProperty({ example: 8, nullable: true })
+  @Expose()
+  rating!: number | null;
+
+  @ApiProperty({ example: true })
+  @Expose()
+  watched!: boolean;
+
+  @ApiProperty({ example: false })
+  @Expose()
+  favorite!: boolean;
+
+  constructor(partial: Partial<UserStateDto>) {
     Object.assign(this, partial);
   }
 }
@@ -108,6 +126,11 @@ export class TitleDetailDto {
   @Expose()
   @Type(() => ProvidersDto)
   providers!: ProvidersDto;
+
+  @ApiPropertyOptional({ type: () => UserStateDto })
+  @Expose()
+  @Type(() => UserStateDto)
+  userState?: UserStateDto;
 
   constructor(partial: Partial<TitleDetailDto>) {
     Object.assign(this, partial);
