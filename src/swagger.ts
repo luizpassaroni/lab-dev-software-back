@@ -3,8 +3,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 export function setupSwagger(app: INestApplication): boolean {
   const isEnabled =
-    process.env.SWAGGER_ENABLED === 'true' &&
-    process.env.NODE_ENV !== 'production';
+    process.env.SWAGGER_ENABLED === 'true'
 
   if (!isEnabled) {
     return false;
