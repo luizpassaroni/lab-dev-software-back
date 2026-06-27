@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
 import { Logger } from 'nestjs-pino';
 import { setupSwagger } from './swagger';
+import helmet from 'helmet';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
@@ -23,6 +24,8 @@ async function bootstrap() {
       excludeExtraneousValues: true,
     }),
   );
+
+  app.use(helmet());
 
   setupSwagger(app);
 
