@@ -1,0 +1,42 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#FFFFFF",
+    "primaryColor": "#FBF7EE",
+    "primaryTextColor": "#1A1A1A",
+    "primaryBorderColor": "#B64A1C",
+    "secondaryColor": "#F5F0E3",
+    "tertiaryColor": "#FFFFFF",
+    "lineColor": "#6D7A86",
+    "fontFamily": "Inter, Arial, sans-serif"
+  },
+  "flowchart": {
+    "curve": "basis",
+    "htmlLabels": true,
+    "nodeSpacing": 45,
+    "rankSpacing": 60
+  }
+}}%%
+
+flowchart TB
+    BROWSER["Navegador<br/>React 19<br/>cookie session HttpOnly"]
+
+    subgraph VERCEL["Vercel · Frontend + BFF"]
+        NEXT["Next.js 16<br/>App Router<br/>Route Handlers /api/*"]
+    end
+
+    subgraph AZURE["Azure VM · Brazil South"]
+        subgraph COMPOSE["Docker Compose"]
+            CADDY["Caddy<br/>TLS automático<br/>portas 80 e 443"]
+            API["NestJS 11<br/>Auth · Titles · History<br/>InternalKeyGuard (exceto /health)<br/>JWT · Cache · Throttling · Pino"]
+            DB[("PostgreSQL 18<br/>volume persistente<br/>sem exposição pública")]
+        end
+    end
+
+    TMDB["TMDB API v3<br/>pt-BR · região BR"]
+
+    BROWSER -- "HTTPS same-origin<br/>GET · POST · DELETE /api/*" --> NEXT
+    NEXT -- "HTTPS<br/>X-Internal-Key<br/>Bearer JWT nas rotas protegidas<br/>X-Client-IP" --> CADDY
+    CADDY -- "reverse_proxy api:3000" --> API
+    API -- "Prisma 7 + PrismaPg<br/>rede interna Docker" --> DB
+    API -- "HTTPS · Bearer v4" --> TMDB

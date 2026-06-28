@@ -1,0 +1,50 @@
+%%{init: {
+  "theme": "base",
+  "themeVariables": {
+    "background": "#FFFFFF",
+    "primaryColor": "#FBF7EE",
+    "primaryTextColor": "#1A1A1A",
+    "primaryBorderColor": "#B64A1C",
+    "lineColor": "#6D7A86",
+    "fontFamily": "Inter, Arial, sans-serif"
+  }
+}}%%
+
+erDiagram
+    User ||--o{ Rating : avalia
+    User ||--o{ Watched : "marca como visto"
+    User ||--o{ Favorite : favorita
+
+    User {
+        int id PK
+        string name
+        string email UK
+        string passwordHash
+        datetime createdAt
+    }
+
+    Rating {
+        int id PK
+        int userId FK
+        int tmdbId
+        TmdbType tmdbType "MOVIE | TV"
+        float score "inteiro de 1 a 10 atualmente"
+        datetime createdAt
+    }
+
+    Watched {
+        int id PK
+        int userId FK
+        int tmdbId
+        TmdbType tmdbType "MOVIE | TV"
+        WatchedOrigin origem "manual | auto"
+        datetime watchedAt
+    }
+
+    Favorite {
+        int id PK
+        int userId FK
+        int tmdbId
+        TmdbType tmdbType "MOVIE | TV"
+        datetime createdAt
+    }
