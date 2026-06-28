@@ -148,7 +148,7 @@ interna. Ver `docs/PRD.md` (§8.1), `CONTEXT.md` e `docs/sprint-1-plan.md`.
 | Repositório | Papel | Stack | No ar |
 |---|---|---|---|
 | [`lab-dev-software-back`](https://github.com/luizpassaroni/lab-dev-software-back) (este repo) | API + alvo do BFF | NestJS 11 · Prisma 7 · PostgreSQL 18 | <https://api-uva.eduoncode.com> |
-| [`lab-dev-software-front`](https://github.com/luizpassaroni/lab-dev-software-front) | Front-end + BFF | Next.js 16 · React 19 · pnpm | _a definir_ |
+| [`lab-dev-software-front`](https://github.com/luizpassaroni/lab-dev-software-front) | Front-end + BFF | Next.js 16 · React 19 · pnpm | <https://lab-dev-software-front.vercel.app> |
 
 ---
 
@@ -533,7 +533,7 @@ ver "onde assistir" no Brasil.
 
 # URL no ar
 
-- **Front (Vercel):** _a definir_
+- **Front (Vercel):** <https://lab-dev-software-front.vercel.app>
 - **API (Azure VM + Caddy/HTTPS):** <https://api-uva.eduoncode.com> — `GET /health` responde `{"status":"ok"}`.
 
 # Documentação
