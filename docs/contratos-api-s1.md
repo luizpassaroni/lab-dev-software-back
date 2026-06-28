@@ -1,5 +1,7 @@
 # Contratos API — Sprint 1
 
+> Contrato da Sprint 1. A referência atual é [`docs/api.md`](api.md).
+
 **Participantes:** IgorRocha1603, luizpassaroni, caioplaninschek, eduoncode, joaovictorBC  
 **Data:** 2026-06-13  
 
