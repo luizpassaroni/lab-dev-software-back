@@ -1,128 +1,3 @@
-# Guia de Streaming API
-
-Backend NestJS do Guia de Streaming. A API centraliza autenticacao, dados do usuario e integracao com a TMDB. O browser deve chamar o BFF do frontend; o Next chama esta API server-to-server usando `X-Internal-Key`.
-
-## Setup local
-
-Instale as dependencias:
-
-```bash
-npm install
-```
-
-Crie o arquivo de ambiente:
-
-```bash
-cp .env.example .env
-```
-
-No Windows PowerShell, o equivalente e:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Preencha as variaveis em `.env`:
-
-| Variavel | Uso local |
-| --- | --- |
-| `DATABASE_URL` | URL do PostgreSQL usado pelo Prisma. O compose local usa `postgresql://local_user:local_password_123@localhost:5432/uva_local_db` no host. |
-| `JWT_SECRET` | Segredo para assinar JWT. Gere um valor proprio para ambientes compartilhados. |
-| `TMDB_API_TOKEN` | Token Bearer v4 da TMDB. |
-| `INTERNAL_API_KEY` | Chave compartilhada com o BFF do frontend. O mesmo valor deve estar no `.env.local` do front. |
-| `NODE_ENV` | Use `development` localmente. |
-| `SWAGGER_ENABLED` | Use `true` para habilitar `/api/docs` fora de producao. |
-| `PORT` | Porta da API. O default local e `3000`, seguindo `docker-compose.local.yml`. |
-
-Gere segredos locais quando precisar:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
-
-### PostgreSQL via Docker e API nativa
-
-O `docker-compose.local.yml` e a referencia do setup local Docker. Ele define:
-
-| Servico | Host/porta | Usuario | Banco |
-| --- | --- | --- | --- |
-| `postgres_local` | `localhost:5432` | `local_user` | `uva_local_db` |
-| `api_local` | `localhost:3000` | - | - |
-
-Para subir apenas o banco:
-
-```bash
-docker compose -f docker-compose.local.yml up -d postgres_local
-```
-
-Aplique as migrations:
-
-```bash
-npx prisma migrate dev
-```
-
-Suba a API em modo desenvolvimento:
-
-```bash
-npm run start:dev
-```
-
-Com esse caminho, a API fica em:
-
-```text
-http://localhost:3000
-```
-
-Se o frontend Next tambem estiver rodando localmente, configure o front para chamar:
-
-```env
-API_INTERNAL_URL=http://localhost:3000
-INTERNAL_API_KEY=<mesmo valor do back>
-```
-
-Caso o Next precise usar a mesma maquina ao mesmo tempo, mantenha o backend conforme o compose (`localhost:3000`) e suba o frontend em outra porta livre.
-
-### Stack local via Docker
-
-Para subir os servicos definidos no compose local:
-
-```bash
-docker compose -f docker-compose.local.yml up --build
-```
-
-O container da API escuta `3000` e publica `localhost:3000`, conforme o compose local.
-
-## API Documentation
-
-Com `SWAGGER_ENABLED=true` e fora de producao, a documentacao interativa fica em:
-
-```text
-http://localhost:3000/api/docs
-```
-
-O Swagger suporta JWT Bearer e o header `X-Internal-Key` usado pelo BFF.
-
-## Logout
-
-Logout e tratado no BFF: o Next apaga o cookie `session`. O Nest nao tem endpoint de logout nem blocklist. O token segue valido ate expirar em 24h. A blocklist de tokens revogados e stretch; consulte o [PRD section 5.3](docs/PRD.md#53-pode-entrar-se-sobrar-tempo-stretch) e as [decisoes registradas no PRD section 15](docs/PRD.md#15-decisões-registradas).
-
-## Scripts
-
-```bash
-# development
-npm run start
-
-# watch mode
-npm run start:dev
-
-# production mode
-npm run start:prod
-
-# debug mode
-npm run start:debug
-
-# build
-npm run build
 # Plot Twist — Guia de Streaming (back + front)
 
 > **README de entrada do projeto — "do zero por terceiro" (issue #80 / META-4).**
@@ -149,6 +24,36 @@ interna. Ver `docs/PRD.md` (§8.1), `CONTEXT.md` e `docs/sprint-1-plan.md`.
 |---|---|---|---|
 | [`lab-dev-software-back`](https://github.com/luizpassaroni/lab-dev-software-back) (este repo) | API + alvo do BFF | NestJS 11 · Prisma 7 · PostgreSQL 18 | <https://api-uva.eduoncode.com> |
 | [`lab-dev-software-front`](https://github.com/luizpassaroni/lab-dev-software-front) | Front-end + BFF | Next.js 16 · React 19 · pnpm | <https://lab-dev-software-front.vercel.app> |
+
+## Funcionalidades
+
+- Cadastro e login com sessão segura (cookie HttpOnly, JWT 24h).
+- Busca de filmes e séries (TMDB, em português, região Brasil).
+- Descoberta por gênero e "Em alta" na Home.
+- Ficha do título: sinopse, elenco, nota TMDB, gêneros, duração/temporadas.
+- "Onde assistir" no Brasil: assinatura (flatrate), aluguel e compra.
+- Avaliar (nota 1–10), marcar como visto e favoritar títulos.
+- Perfil com totais e listas de vistos, avaliados e favoritos.
+- Tema claro/escuro e layout responsivo.
+
+## Integrantes
+
+| Nome | RA | Função |
+|---|---|---|
+| Caio Parada Oliveira Planinschek | 1240205596 | Product Owner, Backend, Frontend |
+| João Victor Berçot Chabudet Cabral | 1240108001 | Backend |
+| Igor Rocha Lobato | 1240114118 | Backend, Frontend |
+| Carlos Matheus Marinho Tavares | 1240119803 | Frontend, Documentação |
+| Eduardo de Oliveira Fernandes | 1240104170 | Backend, QA |
+| Luiz Felipe de Aguiar Passaroni | 1240114559 | QA |
+| Lucas Vasconcelos Tabosa de Almeida | 1250100134 | Documentação |
+| Gabriel Albuquerque Varela Santarello | 1240110815 | Documentação, QA |
+| Davi Hasson Castro | 1240117220 | Frontend |
+| Maria Fernanda Lourenço Class Teixeira | 1240113501 | Documentação, QA |
+
+## Capturas de tela
+
+As telas da aplicação estão documentadas em [`docs/telas/`](docs/telas/), com captura em tema claro e escuro de cada uma das 6 telas.
 
 ---
 
@@ -292,60 +197,6 @@ variáveis `POSTGRES_PASSWORD`, `JWT_SECRET`, `INTERNAL_API_KEY` e
 descrita em `infra/main.bicep`; o deploy é automatizado em
 `.github/workflows/deploy.yml` (pipeline estrita à `main`).
 
-## Endpoints principais
-
-> **Header obrigatório.** Um guard global (`InternalKeyGuard`) exige o header
-> `X-Internal-Key: <INTERNAL_API_KEY>` em **todas** as rotas, exceto as públicas
-> (`/health`). Em produção, quem injeta esse header é o BFF (Next) — o navegador
-> nunca chama esta API diretamente. Há também rate limit global (100 req/min por IP).
-
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/health` | Health check (público, sem header) |
-| `POST` | `/auth/register` | Cadastro (nome, email, senha) |
-| `POST` | `/auth/login` | Login — emite JWT (expira em 24h) |
-| `GET` | `/titles/search?q=<termo>&page=<n>` | Busca filmes + séries na TMDB (região BR) |
-| `GET` | `/titles/:type/:id` | Ficha do título (`type` = `movie`/`tv`, `id` = id da TMDB) |
-
-Sobre **logout**: não há endpoint server-side — a sessão é descartada no BFF
-(remoção do cookie). Ver `CONTEXT.md` e a issue de contrato de logout.
-
-## Estrutura do back
-
-```
-src/
-├── auth/         # cadastro, login, JWT, guards de autenticação
-├── titles/       # busca e ficha de títulos (cliente TMDB + cache)
-├── user/         # dados do usuário
-├── prisma/       # PrismaModule/Service
-├── common/       # guards (InternalKey, throttler), decorators (@Public)
-├── env.validation.ts
-└── main.ts
-prisma/           # schema + migrations
-infra/            # main.bicep (Azure)
-docs/             # PRD, contratos de API, planos de sprint, issues
-```
-
----
-
-# Parte 2 — Frontend (`lab-dev-software-front`)
-
-## Tests
-
-```bash
-# unit tests
-npm run test
-
-# watch mode
-npm run test:watch
-
-# e2e tests
-npm run test:e2e
-
-# coverage
-npm run test:cov
-```
-
 ## Deploy
 
 O deploy de producao roda na Azure VM com Docker compose e e disparado pelo GitHub Actions em pushes para `main` que alterem arquivos de infra, Docker, Prisma, package ou codigo fonte.
@@ -417,6 +268,48 @@ Variaveis e secrets de producao:
 | `POSTGRES_PASSWORD` | GitHub Secret `PROD_POSTGRES_PASSWORD`, escrito no `.env` da VM pelo workflow. | Senha do banco PostgreSQL de producao. |
 
 Valores reais de secrets nunca devem ser versionados.
+
+## Endpoints principais
+
+> **Header obrigatório.** Um guard global (`InternalKeyGuard`) exige o header
+> `X-Internal-Key: <INTERNAL_API_KEY>` em **todas** as rotas, exceto as públicas
+> (`/health`). Em produção, quem injeta esse header é o BFF (Next) — o navegador
+> nunca chama esta API diretamente. Há também rate limit global (100 req/min por IP).
+
+| Método | Rota | Descrição |
+|---|---|---|
+| `GET` | `/health` | Health check (público, sem header) |
+| `POST` | `/auth/register` | Cadastro (nome, email, senha) |
+| `POST` | `/auth/login` | Login — emite JWT (expira em 24h) |
+| `GET` | `/titles/search?q=<termo>&page=<n>` | Busca filmes + séries na TMDB (região BR) |
+| `GET` | `/titles/:type/:id` | Ficha do título (`type` = `movie`/`tv`, `id` = id da TMDB) |
+
+Sobre **logout**: não há endpoint server-side — a sessão é descartada no BFF
+(remoção do cookie). Ver `CONTEXT.md` e a issue de contrato de logout.
+
+A referência completa da API (todos os endpoints, payloads e autenticação) está
+em [`docs/api.md`](docs/api.md).
+
+## Estrutura do back
+
+```
+src/
+├── auth/         # cadastro, login, JWT, guards de autenticação
+├── titles/       # busca e ficha de títulos (cliente TMDB + cache)
+├── user/         # dados do usuário
+├── prisma/       # PrismaModule/Service
+├── common/       # guards (InternalKey, throttler), decorators (@Public)
+├── env.validation.ts
+└── main.ts
+prisma/           # schema + migrations
+infra/            # main.bicep (Azure)
+docs/             # PRD, contratos de API, planos de sprint, issues
+```
+
+---
+
+# Parte 2 — Frontend (`lab-dev-software-front`)
+
 Front-end **e BFF** do Plot Twist. O navegador fala **só** com o Next
 (same-origin, `/api/*`); o Next fala com a API Nest (Parte 1) server-to-server,
 injetando a chave interna. O token de sessão vive num cookie `HttpOnly` — o JS
@@ -544,3 +437,10 @@ Ordem de leitura recomendada do projeto:
 2. `CONTEXT.md` — glossário canônico (vocabulário do time; idêntico nos 2 repos)
 3. `docs/sprint-1-plan.md` — o recorte da sprint
 4. A issue — a tarefa
+
+Referência e artefatos:
+
+- [`docs/api.md`](docs/api.md) — referência completa da API REST (endpoints, payloads, autenticação).
+- [`docs/telas/`](docs/telas/) — capturas e descrição das 6 telas.
+- `docs/arquitetura.png` e `docs/banco_de_dados.png` — diagramas de arquitetura e do modelo de dados.
+- O relatório acadêmico completo (PDF, template UVA) acompanha a entrega final da disciplina.
