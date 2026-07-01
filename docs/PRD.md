@@ -181,7 +181,7 @@ Registrado para não voltar atrás sem decisão explícita:
   - [ ] Hash da senha no banco com bcrypt ou argon2 (nunca em texto plano, nunca hash simples como MD5/SHA1).
   - [ ] Email é único no banco (`@unique` no Prisma).
   - [ ] **Nome:** trim automático; mínimo 3 caracteres após trim; máximo 50; aceita letras (com acento), números, espaços, hífen e apóstrofe; **não exige unicidade**.
-  - [ ] Cadastro **não** faz auto-login (cria conta → vai para a tela de login). **Sem cookie** no cadastro.
+  - [ ] O endpoint `POST /api/auth/register` **não** seta cookie nem autentica — **sem cookie** na resposta do registro (contrato inalterado, ver §8.1). **No front**, após o cadastro bem-sucedido, a tela loga automaticamente com as credenciais do formulário e leva à Home (ajuste FRONT-23, em produção).
   - **DoD:** `POST /api/auth/register` cria o usuário com hash; email duplicado retorna 409; nenhum cookie é setado.
 
 - **US-1.2** Como usuário, quero fazer login para acessar minha conta.
