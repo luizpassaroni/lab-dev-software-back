@@ -1,11 +1,11 @@
 # PRD — Guia de Streaming
 
-**Versão:** 2.1
+**Versão:** 2.2
 **Autor:** Caio Planinschek (PO)
-**Data:** 23/06/2026
+**Data:** 01/07/2026
 **Audiência:** time do projeto Guia de Streaming (devs back, devs front, QA)
 **Status:** ativo
-**Supersede:** v2.0 (30/05/2026). Mudanças desta versão (redesign da Home): **tema escuro como padrão** (US-5.1 / §5.1 / §15), **estado inicial "Em alta"** na home via discover sem gênero (US-2.3 / §12 / §15), **marca pública "Plot Twist"** (§1) e **descrição da Home atualizada** (§7.1 / §12). Histórico: a v2.0 migrou a auth para BFF e recomprimiu o cronograma para 02/07 (supersedeu a v1.1 de 26/05).
+**Supersede:** v2.1 (23/06/2026). Mudanças desta versão (alinhamento spec × entregue, no fechamento): **cache de gêneros corrigido para TTL de 1h** (§8 / §15), **CI de testes em PR removido da spec** — o que existe é o pipeline de deploy (§8.3 / §15), **HTTPS do back via Caddy** no domínio `api-uva.eduoncode.com` (§8.2 / §8.3 / §10 / §15), **diagramas e telas marcados como produzidos** (§10 / §11 / §12), **tela Erro/404 dedicada registrada como cortada** (§12 / §15) e **checklist de fechamento atualizado** (§13.5). Histórico: a v2.1 registrou o redesign da Home (tema escuro padrão, "Em alta", marca Plot Twist); a v2.0 migrou a auth para BFF e recomprimiu o cronograma para 02/07.
 
 ---
 
@@ -290,7 +290,7 @@ Usuário (qualquer) digita query → browser chama `GET /api/titles/search` no *
   - **Cache-hit** (chamada TMDB já cacheada): resposta em até **200ms**.
   - **Cache-miss** (chamando TMDB pela primeira vez): resposta em até **2s**.
 - **Cache TMDB:** via `@nestjs/cache-manager` em memória do processo Nest (sem Redis no MVP). TTLs diferenciados por endpoint:
-  - Lista de gêneros (`/genre/movie/list`, `/genre/tv/list`): **permanente até restart do processo**.
+  - Lista de gêneros (`/genre/movie/list`, `/genre/tv/list`): **1h** (TTL default global do `CacheModule`; o serviço não define TTL próprio — corrigido na v2.2, a spec anterior dizia "permanente até restart", ver §15 01/07).
   - Ficha do título (`/movie/{id}`, `/tv/{id}`): **24h**.
   - Provedores (`/movie/{id}/watch/providers`, equivalente tv): **12h**.
   - Busca (`/search/multi`): **1h**.
@@ -335,14 +335,14 @@ O browser fala **só** com o Next (same-origin). O Next fala com o Nest **server
 - **Back fechado** pela chave interna `X-Internal-Key` → protege a cota TMDB (abuso de busca), criação de conta em massa e varredura.
 - **Helmet** entra, com a ressalva: os headers/CSP que protegem o **browser** vão **no Next**, não só no Nest.
 - **CSRF:** risco aceito no MVP com `SameSite=Lax`; CSRF token é stretch §5.3.
-- **HTTPS obrigatório em produção em ambos os lados** — Vercel cobre o front automaticamente; o back resolve via Caddy/Traefik no `docker-compose` (Let's Encrypt automático com domínio próprio) ou Cloudflare grátis em modo proxy na frente da VM. Sem HTTPS no back, o front na Vercel é bloqueado por mixed content.
+- **HTTPS obrigatório em produção em ambos os lados** — Vercel cobre o front automaticamente; o back resolveu via **Caddy no `docker-compose`** (Let's Encrypt automático), terminando TLS no domínio **`api-uva.eduoncode.com`** (ver §15, 01/07). Sem HTTPS no back, o front na Vercel é bloqueado por mixed content.
 - **Ownership por `userId`:** queries de histórico (avaliar/visto/favoritar) sempre derivam o `userId` do JWT — não confiar em id vindo do cliente. (Sem RBAC/papéis — admin fora do MVP.)
 
 ### 8.3 Demais RNF
 
 - **Deploy:** aplicação **deve estar acessível online** (exigência do Prof. Paulo Andrade). Stack:
   - **Front (Next.js / BFF): Vercel** — integração nativa, deploy automático via GitHub. As envs `API_INTERNAL_URL` e `INTERNAL_API_KEY` ficam **server-side** no Vercel (nunca `NEXT_PUBLIC_*`).
-  - **Back (Nest.js): Azure VM 24/7 com Docker compose** — container do app NestJS na porta 3000 mapeada pra 80 da VM.
+  - **Back (Nest.js): Azure VM 24/7 com Docker compose** — container do app NestJS atrás do **Caddy**, que termina TLS (443) em `api-uva.eduoncode.com`.
   - **Banco (PostgreSQL):** container Postgres no mesmo `docker-compose.yml` da VM, rede interna do Docker, sem exposição pública.
   - **IaC:** Bicep (Azure ARM). **CI/CD:** GitHub Actions, pipeline estrita à `main`.
   - **Três segredos** do projeto: **TMDB API key**, **JWT secret** e **chave interna (`INTERNAL_API_KEY`)** — em GitHub Secrets / ambiente da VM / Vercel server-side; nunca commitados.
@@ -360,7 +360,7 @@ O browser fala **só** com o Next (same-origin). O Next fala com o Nest **server
     - `auth.service`: cadastro com sucesso; cadastro com email duplicado (409 ou erro de validação); login com sucesso (retorna JWT válido **`{access_token,user}` no corpo**); login com senha errada (401); login com email inexistente (401, sem revelar que o email não existe); rate limit dispara após 5 tentativas em 15min (429, com tracker `X-Client-IP`). **+ `/auth/me`** retorna `{user}` com Bearer válido e 401 sem.
     - `titles.service` (TMDB integration): search com sucesso (lista com poster/título/ano/badge); cache hit não chama TMDB de novo (mock zera chamadas na 2ª requisição); erro de rede da TMDB retorna 5xx tratado sem crash do back.
   - **Front:** sem testes funcionais profundos no MVP — apenas **testes simbólicos** (2-3 testes de componente) como prática educativa e item de rubrica. Validação principal via QA manual.
-  - **CI:** GitHub Actions roda `npm test` no PR do back; falha bloqueia merge. No front, `npm run build` + os testes simbólicos rodam no PR.
+  - **CI:** o GitHub Actions do back é o **pipeline de deploy** (`deploy.yml`, estrito à `main`); **não há workflow de testes em PR** em nenhum dos dois repos — os testes rodam localmente antes do merge, e a revisão de PR é o gate humano (realidade registrada na v2.2, ver §15 01/07; a spec anterior previa `npm test` bloqueando merge).
 
 ---
 
@@ -401,8 +401,9 @@ Gratuita, com dados em PT-BR (sinopses, gêneros) e endpoint `watch/providers` c
 [Vercel — Next.js + camada BFF]
     │  server-to-server: X-Internal-Key + Bearer (protegidas) + X-Client-IP
     ▼
-[Azure VM (Docker compose)]
- ├─ container: Nest.js API (3000 → VM:80)  ── guard global de secret + guard JWT
+[Azure VM (Docker compose) — api-uva.eduoncode.com]
+ ├─ container: Caddy (TLS 443 → app)
+ ├─ container: Nest.js API (3000, rede interna)  ── guard global de secret + guard JWT
  └─ container: PostgreSQL (5432, rede interna)
                     │
                     ▼
@@ -414,7 +415,7 @@ Gratuita, com dados em PT-BR (sinopses, gêneros) e endpoint `watch/providers` c
 - Backend Nest.js intermedia TMDB, faz cache, persiste estado do usuário e valida os dois guards.
 - Postgres armazena User, Rating, Watched, Favorite.
 
-Diagrama detalhado: `docs/arquitetura.png` (a produzir).
+Diagrama detalhado: `docs/arquitetura.png` (✅ produzido, nos dois repositórios; fonte Mermaid em `docs/arquitetura.mmd`).
 
 ---
 
@@ -431,22 +432,22 @@ Chave composta nas três últimas: `(userId, tmdbId, tmdbType)`. Sem CRUD própr
 
 **`tmdbType` é enum no Prisma** (`MOVIE | TV`). Tradução para os valores da TMDB (`"movie"` / `"tv"`) acontece no service.
 
-DER: `docs/banco_de_dados.png` (a produzir).
+DER: `docs/banco_de_dados.png` (✅ produzido, nos dois repositórios; fonte Mermaid em `docs/banco_de_dados.mmd`).
 
 ---
 
 ## 12. Visão das telas
 
-Capturas vão em `docs/telas/` ao longo do desenvolvimento.
+Capturas em `docs/telas/` nos dois repositórios — cada tela em tema escuro e claro.
 
 | Tela | Objetivo | Status |
 |---|---|---|
-| Home | Hero da marca (Plot Twist) + busca + chips de gênero ("Em alta" como padrão) + grade de destaques | a desenhar |
-| Resultados de busca | Lista de cards (filme/série) | a desenhar |
-| Ficha do título | Sinopse + provedores + ações | a desenhar |
-| Login / Cadastro | Auth local (via BFF) | a desenhar |
-| Perfil do usuário | Totais (3 contadores) + listas simples (poster + título + ano, 30 mais recentes) — ver US-4.4 | a desenhar |
-| Erro / 404 | Estados de erro | a desenhar |
+| Home | Hero da marca (Plot Twist) + busca + chips de gênero ("Em alta" como padrão) + grade de destaques | ✅ entregue e capturada (dark+light) |
+| Resultados de busca | Lista de cards (filme/série) | ✅ entregue e capturada (dark+light) |
+| Ficha do título | Sinopse + provedores + ações | ✅ entregue e capturada (dark+light) |
+| Login / Cadastro | Auth local (via BFF) | ✅ entregue e capturada (dark+light) |
+| Perfil do usuário | Totais (3 contadores) + listas simples (poster + título + ano, 30 mais recentes) — ver US-4.4 | ✅ entregue e capturada (dark+light) |
+| Erro / 404 | Estados de erro | ⚠️ página dedicada **cortada** — 404 atendido pelo default do Next; estados de erro/vazio entregues dentro das telas (ver §15, 01/07) |
 
 ---
 
@@ -515,13 +516,13 @@ Capturas vão em `docs/telas/` ao longo do desenvolvimento.
 
 ### 13.5 Fechamento (29/jun–02/jul)
 
-- [ ] **Relatório acadêmico em PDF no template institucional da UVA** — capa, resumo, introdução, fundamentação, desenvolvimento, telas, backlog, versionamento, resultados, conclusão, referências.
-- [ ] README finalizado nos 2 repos.
-- [ ] DER e diagrama de arquitetura exportados em `docs/` nos 2 repos.
-- [ ] Documentação das telas (`docs/telas/`) com print + descrição curta.
-- [ ] **Validação end-to-end final** do deploy publicado.
-- [ ] **Monitorar custos do Azure** — confirmar que cabe no plano escolhido.
-- [ ] Empacotar código em `.zip` para envio via Teams + e-mail.
+- [ ] **Relatório acadêmico em PDF no template institucional da UVA** — capa, resumo, introdução, fundamentação, desenvolvimento, telas, backlog, versionamento, resultados, conclusão, referências. *(Fonte `.md` com as 11 seções pronta e validada contra o código em 01/07; falta o export para o template.)*
+- [ ] README finalizado nos 2 repos. *(Back ✅; front depende do PR #71.)*
+- [x] DER e diagrama de arquitetura exportados em `docs/` nos 2 repos.
+- [x] Documentação das telas (`docs/telas/`) com print + descrição curta.
+- [x] **Validação end-to-end final** do deploy publicado (executada em 27/06 sem falhas).
+- [x] **Monitorar custos do Azure** — dentro do esperado.
+- [ ] Empacotar código em `.zip` para envio via Teams + e-mail (da `main` atualizada, após merges pendentes).
 - [ ] Ensaio + **apresentação**. **ENTREGA: 02/07/2026.**
 
 ---
@@ -544,6 +545,10 @@ Capturas vão em `docs/telas/` ao longo do desenvolvimento.
 ## 15. Decisões registradas
 
 > Log **append-only** de decisões fechadas. Entradas novas no topo de cada bloco datado; entradas antigas **não** são reescritas (mesmo quando superadas — a superseção é anotada).
+
+### 01/07/2026
+
+- **Alinhamento spec × entregue (v2.2), na véspera da entrega.** Auditoria do PRD contra o código dos dois repos revelou cinco divergências, corrigidas in-place: (1) **cache de gêneros nunca teve TTL permanente** — o serviço usa o default global do `CacheModule` (1h); §8 corrigido; (2) **workflow de testes em PR nunca foi implementado** — o Actions do back é só o pipeline de deploy; o gate real foi teste local + revisão de PR; §8.3 corrigido; (3) **HTTPS do back fechado com Caddy** (Let's Encrypt) terminando TLS no domínio `api-uva.eduoncode.com` — resolve a escolha "Caddy/Traefik/Cloudflare" deixada em aberto em §8.2; §8.2/§8.3/§10 atualizados; (4) **diagramas e telas produzidos** — `docs/arquitetura.png`, `docs/banco_de_dados.png` e `docs/telas/` (dark+light) nos dois repos; §10/§11/§12 atualizados; (5) **página dedicada de Erro/404 cortada** — o 404 é atendido pelo default do Next e os estados de erro/vazio vivem dentro das telas; §12 anotado. Rotas internas `/user/*` (CRUD de scaffold, sem espelho no BFF, atrás da chave interna) permanecem fora do contrato funcional — documentadas em `docs/api.md`.
 
 ### 23/06/2026
 
